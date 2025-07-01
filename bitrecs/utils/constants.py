@@ -25,7 +25,7 @@ Constants:
 
 """
 ROOT_DIR = Path(bitrecs.__file__).parent.parent
-MAX_DENDRITE_TIMEOUT = 4
+MAX_DENDRITE_TIMEOUT = 5
 MIN_QUERY_LENGTH = 3
 MAX_QUERY_LENGTH = 40
 MAX_RECS_PER_REQUEST = 20
