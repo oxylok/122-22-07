@@ -18,12 +18,10 @@
 
 import math
 import json
-import traceback
 import numpy as np
 import bittensor as bt
-import jsonschema
 import json_repair
-from typing import List
+from typing import List, Dict, Set, Tuple
 from bitrecs.commerce.user_action import UserAction, ActionType
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.commerce.product import Product, ProductFactory
@@ -40,98 +38,313 @@ ACTION_WEIGHTS = {
     ActionType.PURCHASE.value: 0.85,
 }
 
+# Pre-compiled schema for validation
+RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sku": {"type": "string"},
+        "name": {"type": "string"},
+        "price": {"type": ["string", "number"]},
+        "reason": {"type": "string"}
+    },
+    "required": ["sku", "name", "price", "reason"],
+}
+
 class CatalogValidator:
-    def __init__(self, store_catalog: List[Product]):
+    def __init__(self, store_catalog: List[Product]):        
         self.sku_set = {product.sku.lower().strip() for product in store_catalog}
+        self.catalog_size = len(store_catalog)
     
-    def validate_sku(self, sku: str) -> bool:
-        if not sku:
-            return False
-        return sku.lower().strip() in self.sku_set
-
-
-def validate_result_schema(num_recs: int, results: list) -> bool:
-    """
-    Ensure results from Miner match the required schema
-    """
-    if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
-        return False
-    if len(results) != num_recs:
-        bt.logging.error("Error validate_result_schema num_recs mismatch")
-        return False
+    def validate_sku(self, sku: str) -> bool:        
+        return bool(sku) and sku.lower().strip() in self.sku_set
     
-    schema = {
-        "type": "object",
-        "properties": {
-            "sku": {"type": "string"},
-            "name": {"type": "string"},
-            "price": {"type": ["string", "number"]},
-            "reason": {"type": "string"}
-        },
-        "required": ["sku", "name", "price", "reason"],
-    }
-
-    count = 0
-    for item in results:
-        try:            
-            #thing = json.loads(item)
-            thing = json_repair.loads(item)
-            jsonschema.validate(thing, schema)           
-            count += 1
-        except json.decoder.JSONDecodeError as e:            
-            bt.logging.trace(f"JSON JSONDecodeError ERROR: {e}")
-            break
-        except jsonschema.exceptions.ValidationError as e:            
-            bt.logging.trace(f"JSON ValidationError ERROR: {e}")
-            break
-        except Exception as e:            
-            bt.logging.trace(f"JSON Exception ERROR: {e}")
-            break
-
-    return count == len(results)
+    def validate_skus_batch(self, skus: List[str]) -> List[bool]:        
+        if not skus:
+            return []        
+        
+        normalized_skus = [sku.lower().strip() if sku else "" for sku in skus]
+        return [bool(sku) and sku in self.sku_set for sku in normalized_skus]
 
 
-def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
-    """
-    Reward miners who generate positive actions on ecommerce sites
-
-    """
-    try:
-        if not actions or len(actions) == 0:
-            return 0.0
-
-        miner_actions = [a for a in actions if a["hot_key"].lower() == hotkey.lower()]
-        if len(miner_actions) == 0:
-            bt.logging.trace(f"Miner {hotkey} has no actions")
-            return 0.0
-
-        views = [v for v in miner_actions if v["action"] == ActionType.VIEW_PRODUCT.name]
-        add_to_carts = [a for a in miner_actions if a["action"] == ActionType.ADD_TO_CART.name]
-        purchases = [p for p in miner_actions if p["action"] == ActionType.PURCHASE.name]        
-
-        if len(views) == 0 and len(add_to_carts) == 0 and len(purchases) == 0:
-            bt.logging.trace(f"Miner {hotkey} has no parsed actions - skipping boost")
+class ActionBoostCalculator:
+    """Pre-compute and cache action boosts for miners"""
+    
+    def __init__(self, actions: List[UserAction]):
+        self.miner_actions_cache = self._group_actions_by_miner(actions)
+    
+    def _group_actions_by_miner(self, actions: List[UserAction]) -> Dict[str, Dict[str, int]]:        
+        if not actions:
+            return {}
+        
+        miner_stats = {}
+        for action in actions:
+            hotkey = action.get("hot_key", "").lower()
+            if not hotkey:
+                continue
+                
+            if hotkey not in miner_stats:
+                miner_stats[hotkey] = {
+                    ActionType.VIEW_PRODUCT.name: 0,
+                    ActionType.ADD_TO_CART.name: 0,
+                    ActionType.PURCHASE.name: 0
+                }
+            
+            action_type = action.get("action")
+            if action_type in miner_stats[hotkey]:
+                miner_stats[hotkey][action_type] += 1
+        
+        return miner_stats
+    
+    def get_boost(self, hotkey: str) -> float:
+        """Get cached boost for miner"""
+        hotkey_lower = hotkey.lower()
+        if hotkey_lower not in self.miner_actions_cache:
             return 0.0
         
-        vf = ACTION_WEIGHTS[ActionType.VIEW_PRODUCT.value] * len(views)
-        af = ACTION_WEIGHTS[ActionType.ADD_TO_CART.value] * len(add_to_carts)
-        pf = ACTION_WEIGHTS[ActionType.PURCHASE.value] * len(purchases)
-        total_boost = vf + af + pf
-        bt.logging.trace(f"Miner {hotkey} total_boost: {total_boost} from views: ({len(views)}) add_to_carts: ({len(add_to_carts)}) purchases: ({len(purchases)})")
-
-        # miner has no actions this round
+        stats = self.miner_actions_cache[hotkey_lower]        
+        
+        views = stats[ActionType.VIEW_PRODUCT.name]
+        add_to_carts = stats[ActionType.ADD_TO_CART.name] 
+        purchases = stats[ActionType.PURCHASE.name]
+        
+        if views == 0 and add_to_carts == 0 and purchases == 0:
+            return 0.0
+        
+        total_boost = (
+            ACTION_WEIGHTS[ActionType.VIEW_PRODUCT.value] * views +
+            ACTION_WEIGHTS[ActionType.ADD_TO_CART.value] * add_to_carts +
+            ACTION_WEIGHTS[ActionType.PURCHASE.value] * purchases
+        )
+        
         if total_boost == 0:
             return 0.0
         
-        #TODO review this       
         if total_boost > BASE_BOOST:
             total_boost = MAX_BOOST / (1 + math.exp(-total_boost + BASE_BOOST))
         
         return min(max(total_boost, 0.0), MAX_BOOST)
+
+
+def validate_result_schema_fast(num_recs: int, results: list) -> Tuple[bool, int]:
+    """
+    Fast schema validation with early returns and minimal exception handling
+    Returns (is_valid, valid_count)
+    """    
+    if not (1 <= num_recs <= CONST.MAX_RECS_PER_REQUEST):
+        return False, 0
+    
+    if len(results) != num_recs:
+        bt.logging.error("Error validate_result_schema num_recs mismatch")
+        return False, 0
+    
+    valid_count = 0
+    
+    for item in results:
+        try:            
+            try:
+                parsed_item = json.loads(item)
+            except json.JSONDecodeError:
+                parsed_item = json_repair.loads(item)            
+            
+            if not all(key in parsed_item for key in ["sku", "name", "price", "reason"]):
+                break            
+            
+            if (not isinstance(parsed_item["sku"], str) or 
+                not isinstance(parsed_item["name"], str) or
+                not isinstance(parsed_item["reason"], str) or
+                not isinstance(parsed_item["price"], (str, int, float))):
+                break
+            
+            valid_count += 1
+            
+        except Exception as e:
+            bt.logging.trace(f"JSON validation error: {e}")
+            break
+    
+    return valid_count == len(results), valid_count
+
+
+def validate_response_fast(
+    response: BitrecsRequest, 
+    num_recs: int, 
+    catalog_validator: CatalogValidator,
+    query_lower: str
+) -> Tuple[bool, str, Set[str]]:
+    """
+    Fast response validation with batched operations
+    Returns (is_valid, error_message, valid_skus)
+    """
+    
+    if response.is_timeout:
+        return False, f"Miner {response.miner_uid} timeout", set()
+    
+    if response.is_failure:
+        return False, f"Miner {response.miner_uid} failure", set()
+    
+    if not response.is_success:
+        return False, f"Miner {response.miner_uid} not successful", set()
+    
+    if len(response.results) != num_recs:
+        return False, f"Miner {response.miner_uid} num_recs mismatch", set()
+    
+    # Schema validation
+    is_valid_schema, _ = validate_result_schema_fast(num_recs, response.results)
+    if not is_valid_schema:
+        return False, f"Miner {response.miner_uid} failed schema validation", set()
+    
+    # Parse all results and extract SKUs
+    skus = []
+    try:
+        for result in response.results:
+            try:
+                product = json.loads(result)
+            except json.JSONDecodeError:
+                product = json_repair.loads(result)
+            skus.append(product["sku"])
     except Exception as e:
-        bt.logging.error(f"Error in calculate_miner_boost: {e}")
-        traceback.print_exc()
+        return False, f"JSON parsing error: {e}", set()
+    
+    # Batch validation checks
+    if not skus:
+        return False, "No SKUs found", set()
+    
+    # Check for query in results (batch)
+    skus_lower = [sku.lower().strip() for sku in skus]
+    if query_lower in skus_lower:
+        return False, f"Miner {response.miner_uid} has query in results", set()
+    
+    # Check for duplicates
+    unique_skus = set(skus)
+    if len(unique_skus) != len(skus):
+        return False, f"Miner {response.miner_uid} has duplicate results", set()
+    
+    # Batch SKU validation
+    sku_validations = catalog_validator.validate_skus_batch(skus)
+    if not all(sku_validations):
+        return False, f"Miner {response.miner_uid} has invalid SKUs", set()
+    
+    return True, "", unique_skus
+
+
+def reward_fast(
+    num_recs: int, 
+    catalog_validator: CatalogValidator, 
+    response: BitrecsRequest,
+    boost_calculator: ActionBoostCalculator,
+    query_lower: str
+) -> float:
+    """
+    Optimized reward calculation with minimal logging and batched operations
+    """
+    try:
+        
+        is_valid, error_msg, valid_skus = validate_response_fast(
+            response, num_recs, catalog_validator, query_lower
+        )
+        
+        if not is_valid:
+            if error_msg:
+                bt.logging.error(error_msg)
+            return 0.0
+        
+        if len(valid_skus) != num_recs:
+            bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items")
+            return 0.0
+        
+        # Base score calculation
+        score = BASE_REWARD
+        
+        # Time penalty
+        headers = response.to_headers()
+        dendrite_time_header = headers.get("bt_header_dendrite_process_time")
+        
+        if dendrite_time_header:
+            dendrite_time = float(dendrite_time_header)
+            bt.logging.trace(f"Miner {response.miner_uid} dendrite_time: {dendrite_time}")
+            
+            if dendrite_time < 1.0:
+                bt.logging.trace(f"WARNING Miner {response.miner_uid} suspect dendrite_time: {dendrite_time}")
+            
+            score = score - ALPHA_TIME_DECAY * dendrite_time
+        else:
+            bt.logging.error("Error in reward: dendrite_time not found in headers")
+            return 0.0
+        
+        # Action boost (only if enabled)
+        if CONST.CONVERSION_SCORING_ENABLED:
+            boost = boost_calculator.get_boost(response.miner_hotkey)
+            if boost > 0:
+                bt.logging.trace(f"Miner {response.miner_uid} boost: {boost}")
+                score += boost
+        
+        bt.logging.info(f"Final score: {score}")
+        return score
+        
+    except Exception as e:
+        bt.logging.error(f"Error in reward_fast: {e}")
         return 0.0
+
+
+def get_rewards_optimized(
+    num_recs: int,
+    ground_truth: BitrecsRequest,
+    responses: List[BitrecsRequest],
+    actions: List[UserAction] = None
+) -> np.ndarray:
+    """
+    Optimized version with pre-computation and batched operations
+    """
+    # Early validation
+    if not (1 <= num_recs <= CONST.MAX_RECS_PER_REQUEST):
+        bt.logging.error(f"Invalid number of recommendations: {num_recs}")
+        return np.zeros(len(responses), dtype=float)
+    
+    # Parse catalog once
+    try:
+        store_catalog = ProductFactory.try_parse_context_strict(ground_truth.context)
+    except Exception as e:
+        bt.logging.error(f"Failed to parse catalog: {e}")
+        return np.zeros(len(responses), dtype=float)
+    
+    catalog_size = len(store_catalog)
+    if not (CONST.MIN_CATALOG_SIZE <= catalog_size <= CONST.MAX_CATALOG_SIZE):
+        bt.logging.error(f"Invalid catalog size: {catalog_size}")
+        return np.zeros(len(responses), dtype=float)
+    
+    # Pre-compute validation objects
+    catalog_validator = CatalogValidator(store_catalog)
+    boost_calculator = ActionBoostCalculator(actions or [])
+    query_lower = ground_truth.query.lower().strip()
+    
+    if not actions:
+        bt.logging.warning("WARNING - no actions found in get_rewards")
+    
+    # Batch process all responses
+    rewards = np.zeros(len(responses), dtype=float)
+    
+    for i, response in enumerate(responses):
+        rewards[i] = reward_fast(
+            num_recs, 
+            catalog_validator, 
+            response,
+            boost_calculator,
+            query_lower
+        )
+    
+    return rewards
+
+
+# Backward compatibility
+def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
+    """Backward compatibility wrapper"""
+    boost_calculator = ActionBoostCalculator(actions or [])
+    return boost_calculator.get_boost(hotkey)
+
+
+def validate_result_schema(num_recs: int, results: list) -> bool:
+    """Backward compatibility wrapper"""
+    is_valid, _ = validate_result_schema_fast(num_recs, results)
+    return is_valid
 
 
 def reward(
@@ -140,95 +353,10 @@ def reward(
     response: BitrecsRequest,
     actions: List[UserAction]
 ) -> float:
-    """
-    Score the Miner's response to the BitrecsRequest 
-
-    Nubmer of recommendations should match the requested number of recommendations
-    Recommendations must exist in the original catalog
-    Unique recommendations in the response is expected
-    Malformed JSON or invliad skus will result in a 0.0 reward
-    Miner rewards are boosted based on end-user actions on the ecommerce sites to encourage positive recs
-
-    Returns:
-    - float: The reward value for the miner.
-    """    
-    
-    bt.logging.trace("*************** VALIDATOR REWARD *****************")
-    
-    try:
-        score = 0.0
-        if response.is_timeout:
-            bt.logging.error(f"Miner {response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
-            return 0.0
-        if response.is_failure:            
-            bt.logging.error(f"Miner {response.miner_uid} is_failure is True, status: {response.dendrite.status_code}")
-            return 0.0
-        if not response.is_success:
-            bt.logging.error(f"Miner {response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
-            return 0.0
-        if len(response.results) != num_recs:
-            bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {num_recs} but got {len(response.results)}")
-            return 0.0
-        if not validate_result_schema(num_recs, response.results):
-            bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
-            return 0.0        
-        
-        valid_items = set()
-        query_lower = response.query.lower().strip()
-        for result in response.results:
-            try:
-                product = json_repair.loads(result)
-                sku = product["sku"]
-                if sku.lower() == query_lower:
-                    bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")
-                    return 0.0
-                if sku in valid_items:
-                    bt.logging.warning(f"Miner {response.miner_uid} has duplicate results: {response.miner_hotkey}")
-                    return 0.0
-                if not catalog_validator.validate_sku(sku):
-                    bt.logging.warning(f"Miner {response.miner_uid} has invalid results: {response.miner_hotkey}")
-                    return 0.00
-                
-                valid_items.add(sku)
-            except Exception as e:
-                bt.logging.error(f"JSON ERROR: {e}, miner data: {response.miner_hotkey}")
-                return 0.0
-
-        if len(valid_items) != num_recs:
-            bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items: {response.miner_hotkey}")
-            return 0.0
-
-        score = BASE_REWARD
-        headers = response.to_headers()
-        if "bt_header_dendrite_process_time" in headers:
-            dendrite_time = float(headers["bt_header_dendrite_process_time"])
-            bt.logging.trace(f"\033[32mMiner {response.miner_uid} dendrite_time: {dendrite_time} \033[0m")
-
-            #TODO - warn of minerx
-            if dendrite_time < 1.0:
-                bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect dendrite_time: {dendrite_time} \033[0m")
-
-            score = score - ALPHA_TIME_DECAY * float(dendrite_time)
-        else:
-            bt.logging.error(f"Error in reward: dendrite_time not found in headers")
-            return 0.0
-        
-        if CONST.CONVERSION_SCORING_ENABLED: #Disabled during boostrapping phase of mainnet
-            # Adjust the rewards based on the actions
-            boost = calculate_miner_boost(response.miner_hotkey, actions)
-            if boost > 0:
-                bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
-                bt.logging.trace(f"\033[32m current: {score} \033[0m")
-                score = score + boost
-                bt.logging.trace(f"\033[32m after: {score} \033[0m")
-            else:
-                bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
-
-        bt.logging.info(f"\033[1;32m Final {score} \033[0m")
-        return score
-    except Exception as e:
-        bt.logging.error(f"Error in rewards: {e}, miner data: {response}")
-        return 0.0
+    """Backward compatibility wrapper"""
+    boost_calculator = ActionBoostCalculator(actions or [])
+    query_lower = response.query.lower().strip()
+    return reward_fast(num_recs, catalog_validator, response, boost_calculator, query_lower)
 
 
 def get_rewards(
@@ -237,34 +365,7 @@ def get_rewards(
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None
 ) -> np.ndarray:
-    """
-    Returns an array of rewards for the given query and responses.
-
-    Args:
-    - num_recs (int): The number of results expected per miner response.
-    - ground_truth (BitrecsRequest): The original ground truth which contains the catalog and query
-    - responses (List[float]): A list of responses from the miners.
-    - actions (List[UserAction]): A list of user actions across all miners. 
-
-    Returns:
-    - np.ndarray: An array of rewards for the given query and responses.
-    """
-
-    if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
-        bt.logging.error(f"Invalid number of recommendations: {num_recs}")
-        return np.zeros(len(responses), dtype=float)
-    
-    store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
-    if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
-        bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
-        return np.zeros(len(responses), dtype=float)
-    catalog_validator = CatalogValidator(store_catalog)
-    
-    if not actions or len(actions) == 0:
-        bt.logging.warning(f"\033[1;33m WARNING - no actions found in get_rewards \033[0m")
-        
-    return np.array(
-        [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float
-    )
+    """Use optimized version by default"""
+    return get_rewards_optimized(num_recs, ground_truth, responses, actions)
 
 

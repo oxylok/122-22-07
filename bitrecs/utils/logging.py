@@ -147,19 +147,20 @@ def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> Non
     conn.commit()
 
 
-def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> None:
+def log_extracted_data_to_sql(step: int, extracted_data: List[dict]) -> None:
+    """
+    Log pre-extracted response data to SQL (safe for background threads)
+    """
     try:
+        if not extracted_data:
+            bt.logging.info("No data to log")
+            return            
+        
         frames = []
-        for response in responses:
-            if not isinstance(response, BitrecsRequest):
-                bt.logging.warning(f"Skipping invalid response type: {type(response)}")
-                continue
-            data = {
-                **response.to_headers(),
-                **response.to_dict()
-            }
+        for data in extracted_data:
             df = pd.json_normalize(data)          
             frames.append(df)
+        
         final = pd.concat(frames)
 
         if len(final) > 0:
@@ -192,5 +193,29 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> No
 
         bt.logging.info(f"Miner responses logged {len(final)}")
     except Exception as e:
+        bt.logging.error(f"Error in logging extracted data: {str(e)}")
+        if 'final' in locals():
+            bt.logging.error(f"Columns in dataframe: {list(final.columns)}")
+
+
+
+def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> None:
+    """
+    Original function - now just extracts data and calls the new function
+    """
+    try:
+        extracted_data = []
+        for response in responses:
+            if not isinstance(response, BitrecsRequest):
+                bt.logging.warning(f"Skipping invalid response type: {type(response)}")
+                continue
+            data = {
+                **response.to_headers(),
+                **response.to_dict()
+            }
+            extracted_data.append(data)        
+        
+        log_extracted_data_to_sql(step, extracted_data)
+        
+    except Exception as e:
         bt.logging.error(f"Error in logging miner responses: {str(e)}")
-        bt.logging.error(f"Columns in dataframe: {list(final.columns)}")
