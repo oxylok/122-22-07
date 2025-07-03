@@ -16,11 +16,21 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-
+import sys
+def setup_uvloop():
+    if sys.platform != 'win32':
+        try:
+            import uvloop
+            uvloop.install()
+            return True
+        except ImportError:
+            pass
+    return False
+UVLOOP_ENABLED = setup_uvloop()
 import os
 import time
-import bittensor as bt
 import asyncio
+import bittensor as bt
 from datetime import timedelta
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
@@ -34,6 +44,11 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
 load_dotenv()
+
+if UVLOOP_ENABLED:
+    bt.logging.info("\033[32m uvloop enabled \033[0m")
+else:
+    bt.logging.info("\033[33m uvloop not available - using legacy async\033[0m")
 
 
 class Validator(BaseValidatorNeuron):
