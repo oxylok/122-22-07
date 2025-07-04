@@ -301,7 +301,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     api_exclusive = self.config.api.exclusive
                     bt.logging.trace(f"api_enabled: {api_enabled} | api_exclusive {api_exclusive}")
 
-                    if self.bad_shoe_count > 5:
+                    if self.bad_shoe_count > 2:
                         bt.logging.error("\033[31m Too many bad shoes - force miner resync \033[0m")
                         await self.miner_sync()
                         self.bad_shoe_count = 0
