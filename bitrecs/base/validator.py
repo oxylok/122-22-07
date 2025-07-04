@@ -155,6 +155,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.active_miners: List[int] = []
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
+        self.bad_shoe_count: int = 0
         
         write_node_info(
             network=self.network,
@@ -300,6 +301,11 @@ class BaseValidatorNeuron(BaseNeuron):
                     api_exclusive = self.config.api.exclusive
                     bt.logging.trace(f"api_enabled: {api_enabled} | api_exclusive {api_exclusive}")
 
+                    if self.bad_shoe_count > 5:
+                        bt.logging.error("\033[31m Too many bad shoes - force miner resync \033[0m")
+                        await self.miner_sync()
+                        self.bad_shoe_count = 0
+
                     synapse_with_event: Optional[SynapseWithEvent] = None
                     try:
                         synapse_with_event = api_queue.get()
@@ -374,6 +380,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 selected_rec = responses.index(winner)
                         else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
+                            self.bad_shoe_count += 1
                             synapse_with_event.event.set()
                             continue
                     
@@ -390,6 +397,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
+                            self.bad_shoe_count += 1
                             #TODO this causes empty results back to the client resulting in poor UX fix in API?
                             synapse_with_event.event.set()
                             continue
