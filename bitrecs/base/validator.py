@@ -302,8 +302,8 @@ class BaseValidatorNeuron(BaseNeuron):
                     bt.logging.trace(f"api_enabled: {api_enabled} | api_exclusive {api_exclusive}")
 
                     if self.bad_shoe_count > 2:
-                        bt.logging.error("\033[31m Too many bad shoes - force miner resync \033[0m")
-                        await self.miner_sync()
+                        bt.logging.error("\033[31m Too many bad shoes - force miner resync \033[0m")                        
+                        await self.miner_sync.__wrapped__(self)  #Force miner sync
                         self.bad_shoe_count = 0
 
                     synapse_with_event: Optional[SynapseWithEvent] = None
