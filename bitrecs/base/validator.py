@@ -361,8 +361,6 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue                                                
                         
-                        # Default - send top score to client
-                        selected_rec = rewards.argmax()
                         good_indices = np.where(rewards > 0)[0]
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]

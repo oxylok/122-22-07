@@ -19,6 +19,7 @@
 import math
 import json
 import traceback
+from click import Tuple
 import numpy as np
 import bittensor as bt
 import jsonschema
@@ -32,7 +33,7 @@ from bitrecs.utils import constants as CONST
 BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
-ALPHA_TIME_DECAY = 0.05
+
 
 ACTION_WEIGHTS = {
     ActionType.VIEW_PRODUCT.value: 0.05,
@@ -200,15 +201,12 @@ def reward(
 
         score = BASE_REWARD
         headers = response.to_headers()
-        if "bt_header_axon_process_time" in headers: #take miner walltime
+        if "bt_header_axon_process_time" in headers:
             axon_time = float(headers["bt_header_axon_process_time"])
             bt.logging.trace(f"\033[32mMiner {response.miner_uid} axon_time: {axon_time} \033[0m")
-
             #TODO - warn of minerx
             if axon_time < 1.0:
                 bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect axon_time: {axon_time} \033[0m")
-
-            score = score - ALPHA_TIME_DECAY * float(axon_time)
         else:
             bt.logging.error(f"Error in reward: axon_time not found in headers")
             return 0.0
