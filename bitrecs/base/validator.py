@@ -692,7 +692,7 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
     def save_state(self):                
-        np.savez(self.config.neuron.full_path + "/state.npz",
+        np.savez(self.config.neuron.full_path + "/state_084.npz",
                  step=self.step,
                  scores=self.scores,
                  hotkeys=self.hotkeys)        
@@ -702,12 +702,12 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def load_state(self):
         try:
-            if not os.path.exists(self.config.neuron.full_path + "/state.npz"):
+            if not os.path.exists(self.config.neuron.full_path + "/state_084.npz"):
                 bt.logging.info("No state found - initializing first step")
                 self.step = 0
                 return
 
-            state = np.load(self.config.neuron.full_path + "/state.npz", allow_pickle=True)
+            state = np.load(self.config.neuron.full_path + "/state_084.npz", allow_pickle=True)
             self.step = int(state["step"])
             self.scores = state["scores"]
             self.hotkeys = state["hotkeys"]
