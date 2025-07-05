@@ -19,7 +19,6 @@
 import math
 import json
 import traceback
-from click import Tuple
 import numpy as np
 import bittensor as bt
 import jsonschema

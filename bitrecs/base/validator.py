@@ -696,14 +696,14 @@ class BaseValidatorNeuron(BaseNeuron):
                  step=self.step,
                  scores=self.scores,
                  hotkeys=self.hotkeys)        
-        bt.logging.info("Saving validator state.")
+        bt.logging.info("\033[32m Saving validator state. \033[0m")
         write_timestamp(time.time())
 
 
     def load_state(self):
         try:
             if not os.path.exists(self.config.neuron.full_path + "/state_084.npz"):
-                bt.logging.info("No state found - initializing first step")
+                bt.logging.warning("No state found - initializing first step")
                 self.step = 0
                 return
 
