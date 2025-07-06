@@ -11,7 +11,7 @@ from bitrecs.protocol import BitrecsRequest
 
 EVENTS_LEVEL_NUM = 38
 DEFAULT_LOG_BACKUP_COUNT = 10
-SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 5, tzinfo=timezone.utc)
+SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 7, tzinfo=timezone.utc)
 TIMESTAMP_FILE = 'timestamp.txt'
 NODE_INFO_FILE = 'node_info.json'
 
