@@ -102,6 +102,8 @@ class BaseValidatorNeuron(BaseNeuron):
     """
 
     neuron_type: str = "ValidatorNeuron"
+    
+    first_sync = True
 
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):
@@ -690,24 +692,44 @@ class BaseValidatorNeuron(BaseNeuron):
             alpha * scattered_rewards + (1 - alpha) * self.scores
         )
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+        
 
-    def save_state(self):                
-        np.savez(self.config.neuron.full_path + "/state.npz",
-                 step=self.step,
-                 scores=self.scores,
-                 hotkeys=self.hotkeys)        
-        bt.logging.info("Saving validator state.")
-        write_timestamp(time.time())
+    def save_state(self):
+        """Saves the current state of the validator to a file."""
+
+        if self.first_sync:
+            bt.logging.info(f"Save State - first_sync = True, skipping save state.")
+            self.first_sync = False
+            return
+        
+        if (np.all(self.scores == 0) or self.scores.size == 0):
+            bt.logging.warning(f"Score array is empty or all zeros. Skipping save state.")
+            return
+
+        state_path = self.config.neuron.full_path + "/state.npz"
+        bt.logging.info(f"Saving validator state to {state_path}.")
+        np.savez(
+            state_path,
+            step=self.step,
+            scores=self.scores,
+            hotkeys=self.hotkeys
+        )
+        if os.path.isfile(state_path):
+            bt.logging.info(f"\033[32m Save state confirmed \033[0m")
+            write_timestamp(time.time())
+        else:
+            bt.logging.error(f"Save state failed.")
 
 
-    def load_state(self):
+    def load_state(self):        
+        state_path = self.config.neuron.full_path + "/state.npz"
         try:
-            if not os.path.exists(self.config.neuron.full_path + "/state.npz"):
+            if not os.path.exists(state_path):
                 bt.logging.info("No state found - initializing first step")
                 self.step = 0
                 return
 
-            state = np.load(self.config.neuron.full_path + "/state.npz", allow_pickle=True)
+            state = np.load(state_path, allow_pickle=True)
             self.step = int(state["step"])
             self.scores = state["scores"]
             self.hotkeys = state["hotkeys"]
