@@ -200,17 +200,17 @@ def reward(
 
         score = BASE_REWARD
         headers = response.to_headers()
-        if "bt_header_dendrite_process_time" in headers:
-            dendrite_time = float(headers["bt_header_dendrite_process_time"])
-            bt.logging.trace(f"\033[32mMiner {response.miner_uid} dendrite_time: {dendrite_time} \033[0m")
+        if "bt_header_axon_process_time" in headers: #take miner walltime
+            axon_time = float(headers["bt_header_axon_process_time"])
+            bt.logging.trace(f"\033[32mMiner {response.miner_uid} axon_time: {axon_time} \033[0m")
 
             #TODO - warn of minerx
-            if dendrite_time < 1.0:
-                bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect dendrite_time: {dendrite_time} \033[0m")
+            if axon_time < 1.0:
+                bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect axon_time: {axon_time} \033[0m")
 
-            score = score - ALPHA_TIME_DECAY * float(dendrite_time)
+            score = score - ALPHA_TIME_DECAY * float(axon_time)
         else:
-            bt.logging.error(f"Error in reward: dendrite_time not found in headers")
+            bt.logging.error(f"Error in reward: axon_time not found in headers")
             return 0.0
         
         if CONST.CONVERSION_SCORING_ENABLED: #Disabled during boostrapping phase of mainnet
@@ -266,5 +266,3 @@ def get_rewards(
     return np.array(
         [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float
     )
-
-

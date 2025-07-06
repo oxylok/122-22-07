@@ -372,6 +372,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 winner = safe_random.sample(top_k, 1)[0]
                                 bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} - batch: {winner.site_key} \033[0m")                                
                                 selected_rec = responses.index(winner)
+                                rewards[selected_rec] += 0.1 #bonus true consensus winner
                         else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
