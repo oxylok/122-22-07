@@ -478,7 +478,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.is_running:
             bt.logging.debug("Stopping validator in background thread.")
             self.should_exit = True
-            self.save_state()
+            
             if self.api_server:
                 self.api_server.stop()
             self.thread.join(5)
