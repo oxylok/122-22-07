@@ -224,7 +224,7 @@ def reward(
             else:
                 bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
 
-        bt.logging.info(f"\033[1;32m Final {score} \033[0m")
+        #bt.logging.info(f"\033[1;32m Final {score} \033[0m")
         return score
     except Exception as e:
         bt.logging.error(f"Error in rewards: {e}, miner data: {response}")
@@ -286,7 +286,7 @@ def get_rewards(
         
         # Log penalty impact
         if spread > 1.0:
-            bt.logging.info(f"\033[31m High timing spread detected: {spread:.3f}s - penalties will be more significant \033[0m")
+            bt.logging.info(f"\033[33m High timing spread detected: {spread:.3f}s - penalties will be more significant \033[0m")
     
     # Calculate base rewards and apply batch-normalized timing penalties
     rewards = []
@@ -294,32 +294,32 @@ def get_rewards(
         # Get base reward without timing penalty
         base_reward = reward(num_recs, catalog_validator, response, actions)
         
-        if base_reward <= 0.0:  # Changed from == to <= for safety
+        if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-        
+        miner_id = response.miner_uid if response.miner_uid is not None else response.miner_hotkey
         # Apply percentile-based timing penalty
         if axon_times[i] is not None and len(valid_times) > 1:
             timing_penalty = calculate_percentile_timing_penalty(
-                axon_times[i], valid_times, response.miner_uid
+                axon_times[i], valid_times, miner_id
             )
             final_reward = base_reward - timing_penalty
             rewards.append(max(final_reward, 0.0))  # Ensure non-negative
         elif axon_times[i] is None:
             # Penalty for missing timing data
-            bt.logging.warning(f"No axon_time found for miner {response.miner_uid}")
+            bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey}")
             rewards.append(base_reward * 0.5)
         else:
             # Only one valid response, no relative comparison possible
             bt.logging.trace(f"Single response batch - no timing penalty for miner {response.miner_uid}")
             rewards.append(base_reward)
 
-    return np.array(rewards, dtype=float)
-    # return np.array(
-    #     [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float
-    # )
+        bt.logging.trace(f"UID {response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
 
-def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner_uid: int) -> float:    
+    return np.array(rewards, dtype=float)
+   
+
+def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner_uid: str) -> float:    
     if len(all_times) < 2:
         return ALPHA_TIME_DECAY * 0.5
     
