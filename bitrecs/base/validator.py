@@ -298,6 +298,12 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 try:
+                    
+                    if self.should_sync_metagraph():
+                        bt.logging.info(f"Syncing metagraph at step {self.step}")
+                        self.resync_metagraph()
+                        
+
                     api_enabled = self.config.api.enabled
                     api_exclusive = self.config.api.exclusive
                     bt.logging.trace(f"api_enabled: {api_enabled} | api_exclusive {api_exclusive}")
