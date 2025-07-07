@@ -422,7 +422,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         return
 
                     try:
-                        if self.step >= 1 and self.step % 5 == 0:
+                        # if self.step >= 1 and self.step % 5 == 0:
+                        #     self.sync()
+                        if self.step >= 1:
                             self.sync()
                       
                     except Exception as e:
