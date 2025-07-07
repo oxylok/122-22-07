@@ -153,7 +153,7 @@ def reward(
     - float: The reward value for the miner.
     """    
     
-    bt.logging.trace("*************** VALIDATOR REWARD *****************")
+    #bt.logging.trace("*************** VALIDATOR REWARD *****************")
     
     try:
         score = 0.0
@@ -213,7 +213,7 @@ def reward(
         #     bt.logging.error(f"Error in reward: axon_time not found in headers")
         #     return 0.0
         
-        if CONST.CONVERSION_SCORING_ENABLED: #Disabled during boostrapping phase of mainnet
+        if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
             # Adjust the rewards based on the actions
             boost = calculate_miner_boost(response.miner_hotkey, actions)
             if boost > 0:
