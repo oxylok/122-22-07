@@ -298,11 +298,9 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 try:
-                    
                     if self.should_sync_metagraph():
-                        bt.logging.info(f"Syncing metagraph at step {self.step}")
+                        bt.logging.info(f"\033[33m ReSync Metagraph at step {self.step} \033[0m")
                         self.resync_metagraph()
-                        
 
                     api_enabled = self.config.api.enabled
                     api_exclusive = self.config.api.exclusive
@@ -384,8 +382,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
                             if top_k and 1==1: #Top score now pulled from top_k
                                 winner = safe_random.sample(top_k, 1)[0]                                
-                                selected_rec = responses.index(winner)
-                                rewards[selected_rec] += 0.05 #bonus true consensus winner
+                                selected_rec = responses.index(winner)                                
+                                rewards[selected_rec] *= 1.05  # 5% multiplicative bonus
                                 bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded 5% bonus - batch: {winner.site_key} \033[0m")
                         else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
@@ -710,8 +708,6 @@ class BaseValidatorNeuron(BaseNeuron):
         
 
     def save_state(self):
-        """Saves the current state of the validator to a file."""
-
         if self.first_sync:
             bt.logging.info(f"Save State - first_sync = True, skipping save state.")
             self.first_sync = False
@@ -722,7 +718,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return
 
         state_path = self.config.neuron.full_path + "/state.npz"
-        bt.logging.info(f"Saving validator state to {state_path}.")
+        bt.logging.trace(f"Saving validator state to {state_path}.")
         np.savez(
             state_path,
             step=self.step,
@@ -731,12 +727,12 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         if os.path.isfile(state_path):
             bt.logging.info(f"\033[32m Save state confirmed \033[0m")
-            write_timestamp(time.time())
         else:
             bt.logging.error(f"Save state failed.")
+            raise Exception("Save state failed, file not found after save attempt.")
 
 
-    def load_state(self):        
+    def load_state(self):
         state_path = self.config.neuron.full_path + "/state.npz"
         try:
             if not os.path.exists(state_path):
@@ -748,12 +744,8 @@ class BaseValidatorNeuron(BaseNeuron):
             self.step = int(state["step"])
             self.scores = state["scores"]
             self.hotkeys = state["hotkeys"]
-            
-            ts = read_timestamp()
-            if ts:
-                bt.logging.info(f"ts State last write from {ts}")
-            else:
-                bt.logging.warning("No timestamp found for loaded state")
+          
+            bt.logging.trace(f"State loaded at step {self.step} from {state_path}.")
                 
         except Exception as e:
             bt.logging.error(f"Failed to load state: {e}")
