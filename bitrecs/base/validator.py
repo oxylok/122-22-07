@@ -112,7 +112,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
-        np.set_printoptions(suppress=True, precision=8, linewidth=120)
+        np.set_printoptions(suppress=True, precision=8, linewidth=80)
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)      
 
