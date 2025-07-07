@@ -350,6 +350,12 @@ class BaseValidatorNeuron(BaseNeuron):
                                 deserialize=False,
                                 run_async=True
                             )
+                            any_success = any([r for r in responses if r.is_success])
+                            if not any_success: #don't penalize the entire battery, just exit
+                                bt.logging.error("\033[1;31mRETRY FAILED - NO SUCCESSFUL RESPONSES\033[0m")
+                                synapse_with_event.event.set()
+                                continue
+
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                        
                        
