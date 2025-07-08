@@ -151,9 +151,7 @@ def reward(
 
     Returns:
     - float: The reward value for the miner.
-    """    
-    
-    #bt.logging.trace("*************** VALIDATOR REWARD *****************")
+    """
     
     try:
         score = 0.0

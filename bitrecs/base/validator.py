@@ -718,7 +718,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return
 
         state_path = self.config.neuron.full_path + "/state.npz"
-        bt.logging.trace(f"Saving validator state to {state_path}.")
+        #bt.logging.trace(f"Saving validator state to {state_path}.")
         np.savez(
             state_path,
             step=self.step,
@@ -745,7 +745,7 @@ class BaseValidatorNeuron(BaseNeuron):
             self.scores = state["scores"]
             self.hotkeys = state["hotkeys"]
           
-            bt.logging.trace(f"State loaded at step {self.step} from {state_path}.")
+            bt.logging.trace(f"State loaded at step {self.step}")
                 
         except Exception as e:
             bt.logging.error(f"Failed to load state: {e}")

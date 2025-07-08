@@ -93,12 +93,12 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=CONST.MINER_BATTERY_INTERVAL))
     async def miner_sync(self):
         """
-            Checks the miners in the metagraph for connectivity and updates the active miners list.
+        Checks the miners in the metagraph for connectivity and updates the active miners list.
         """
         bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
         bt.logging.trace(f"neuron.sample_size: {self.config.neuron.sample_size}")
         bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
-        bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")        
+        bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")
         
         #available_uids = get_random_miner_uids(self, k=self.config.neuron.sample_size, exclude=excluded)
         available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
@@ -111,34 +111,61 @@ class Validator(BaseValidatorNeuron):
             return
         
         chosen_uids = list(set(chosen_uids))
-        selected_miners = []
-        for uid in chosen_uids:            
+        valid_uids = []
+        for uid in chosen_uids:
             bt.logging.trace(f"Checking uid: {uid} with stake {self.metagraph.S[uid]} and trust {self.metagraph.T[uid]}")
-            if uid == 0:
-                continue
-            if uid == self.uid:
+            if uid == 0 or uid == self.uid:
                 continue
             if not self.metagraph.axons[uid].is_serving:
                 continue
-            # if self.metagraph.S[uid] == 0:
-            #     bt.logging.trace(f"uid: {uid} stake 0T, skipping")
-            #     continue
+            
             this_stake = float(self.metagraph.S[uid])
             stake_limit = float(self.config.neuron.vpermit_tao_limit)
             if this_stake > stake_limit:
                 bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
                 continue
+            
+            valid_uids.append(uid)
+        
+        if len(valid_uids) == 0:
+            self.active_miners = []
+            bt.logging.error("\033[31mNo valid miners found for ping test \033[0m")
+            return
+        
+        start_time = time.perf_counter()
+        batch_size = 4
+        selected_miners = []
 
-            try:                
-                port = int(self.metagraph.axons[uid].port)
-                if ping_miner_uid(self, uid, port, 3):
+        for i in range(0, len(valid_uids), batch_size):
+            batch_uids = valid_uids[i:i + batch_size]
+            bt.logging.trace(f"Pinging batch {i//batch_size + 1}: {batch_uids}")
+            
+            batch_tasks = []
+            for uid in batch_uids:
+                try:
+                    port = int(self.metagraph.axons[uid].port)
+                    task = asyncio.create_task(self._ping_miner_async(uid, port))
+                    batch_tasks.append((uid, task))
+                except Exception as e:
+                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")
+            
+            
+            batch_results = await asyncio.gather(*[task for _, task in batch_tasks], return_exceptions=True)            
+            for (uid, _), result in zip(batch_tasks, batch_results):
+                if isinstance(result, Exception):
+                    bt.logging.trace(f"\033[1;33m ping:{uid}:ERROR - {result} \033[0m")
+                elif result:
                     bt.logging.trace(f"\033[1;32m ping:{uid}:OK \033[0m")
                     selected_miners.append(uid)
                 else:
                     bt.logging.trace(f"\033[1;33m ping:{uid}:FALSE \033[0m")
-            except Exception as e:
-                bt.logging.trace(f"\033[1;33 {e} \033[0m")
-                continue
+            
+            #delay between batches
+            await asyncio.sleep(0.1)
+        
+        duration = time.perf_counter() - start_time
+        bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")
+        
         if len(selected_miners) == 0:
             self.active_miners = []
             bt.logging.error("\033[31mNo active miners selected in round - check your connectivity \033[0m")
@@ -146,7 +173,23 @@ class Validator(BaseValidatorNeuron):
         
         self.active_miners = list(set(selected_miners))
         bt.logging.info(f"\033[1;32m Active miners: {self.active_miners}  \033[0m")
-        
+
+
+    async def _ping_miner_async(self, uid: int, port: int) -> bool:
+        """Async version of ping_miner_uid"""
+        try:
+            # You'll need to make ping_miner_uid async or create an async version
+            # For now, run it in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, 
+                lambda: ping_miner_uid(self, uid, port, 2)  # Reduced timeout to 2s
+            )
+            return result
+        except Exception as e:
+            bt.logging.trace(f"Ping error for uid {uid}: {e}")
+            return False
+    
 
     @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
     async def action_sync(self):
