@@ -427,17 +427,16 @@ class BaseValidatorNeuron(BaseNeuron):
                         elected : BitrecsRequest = responses[selected_rec]
                         elected.context = ""
                         elected.user = ""
-
-                        bt.logging.info("SCORING DONE")
-                        bt.logging.info(f"\033[1;32mWINNING MINER: {elected.miner_uid} \033[0m")
-                        bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
-                        bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
-                        bt.logging.info(f"\033[1;32mWINNING Batch Id: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mQueue Size: {API_QUEUE.qsize()} \033[0m")
+                        
+                        bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL Batch Id: {elected.site_key} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL Final Score: {rewards[selected_rec]} \033[0m")
+                        bt.logging.trace(f"\033[1;32mQueue Size: {API_QUEUE.qsize()} \033[0m")
                         
                         if len(elected.results) == 0:
-                            bt.logging.error("FATAL - Elected response has no results")
-                            #TODO this causes empty results back to the client resulting in poor UX fix in API?
+                            bt.logging.error("FATAL - Elected response has no results")                            
                             synapse_with_event.event.set()
                             continue
                         
