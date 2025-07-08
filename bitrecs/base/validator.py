@@ -450,7 +450,9 @@ class BaseValidatorNeuron(BaseNeuron):
                     
                         bt.logging.info(f"Scored responses: {rewards}")
                         self.update_scores(rewards, chosen_uids)
-                        asyncio.create_task(anyio.to_thread.run_sync(log_miner_responses_to_sql, self.step, responses))
+                        loop = asyncio.get_event_loop()
+                        loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses)
+                        bt.logging.info(f"SQL logging submitted to thread pool - step {self.step}")
                         
                     else:
                         if not api_exclusive: #Regular validator loop  

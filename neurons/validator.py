@@ -178,12 +178,10 @@ class Validator(BaseValidatorNeuron):
     async def _ping_miner_async(self, uid: int, port: int) -> bool:
         """Async version of ping_miner_uid"""
         try:
-            # You'll need to make ping_miner_uid async or create an async version
-            # For now, run it in executor to avoid blocking
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                None, 
-                lambda: ping_miner_uid(self, uid, port, 2)  # Reduced timeout to 2s
+                None,
+                lambda: ping_miner_uid(self, uid, port, 3)
             )
             return result
         except Exception as e:
