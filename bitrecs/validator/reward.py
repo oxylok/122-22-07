@@ -265,12 +265,14 @@ def get_rewards(
     # Extract all axon times first for batch processing
     axon_times = []
     for response in responses:
-        headers = response.to_headers()
-        if "bt_header_axon_process_time" in headers:
-            axon_time = float(headers["bt_header_axon_process_time"])
-            axon_times.append(axon_time)
-        else:
-            axon_times.append(None)
+        axon_time = response.axon.process_time if response.axon and response.axon.process_time else None
+        axon_times.append(axon_time)
+        # headers = response.to_headers()
+        # if "bt_header_axon_process_time" in headers:
+        #     axon_time = float(headers["bt_header_axon_process_time"])
+        #     axon_times.append(axon_time)
+        # else:
+        #     axon_times.append(None)
     
     # Filter out None values for percentile calculation
     valid_times = [t for t in axon_times if t is not None]
