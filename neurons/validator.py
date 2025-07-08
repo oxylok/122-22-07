@@ -51,8 +51,7 @@ class Validator(BaseValidatorNeuron):
         self.load_state()
         self.total_request_in_interval = 0
         if not os.environ.get("BITRECS_PROXY_URL"):
-            raise Exception("Please set the BITRECS_PROXY_URL environment variable.")
-        
+            raise Exception("Please set the BITRECS_PROXY_URL environment variable.")        
 
 
     async def forward(self, pr : BitrecsRequest = None):
@@ -122,28 +121,24 @@ class Validator(BaseValidatorNeuron):
             if uid == 0 or uid == self.uid:
                 continue
             if not self.metagraph.axons[uid].is_serving:
-                continue
-            
+                continue            
             this_stake = float(self.metagraph.S[uid])
             stake_limit = float(self.config.neuron.vpermit_tao_limit)
             if this_stake > stake_limit:
                 bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
                 continue
-
             hk = self.metagraph.axons[uid].hotkey
             if hk not in self.hotkeys:
                 bt.logging.trace(f"uid: {uid} hotkey {hk} not in hotkeys, skipping")
                 continue
-            
             valid_uids.append(uid)
-        
         if len(valid_uids) == 0:
             self.active_miners = []
             bt.logging.error("\033[31mNo valid miners found for ping test \033[0m")
             return
         
         start_time = time.perf_counter()
-        batch_size = 4
+        batch_size = CONST.MINER_BATCH_SIZE
         selected_miners = []
 
         for i in range(0, len(valid_uids), batch_size):
@@ -157,8 +152,7 @@ class Validator(BaseValidatorNeuron):
                     task = asyncio.create_task(self._ping_miner_async(uid, port))
                     batch_tasks.append((uid, task))
                 except Exception as e:
-                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")
-            
+                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
             
             batch_results = await asyncio.gather(*[task for _, task in batch_tasks], return_exceptions=True)            
             for (uid, _), result in zip(batch_tasks, batch_results):
@@ -174,8 +168,7 @@ class Validator(BaseValidatorNeuron):
             await asyncio.sleep(0.1)
         
         duration = time.perf_counter() - start_time
-        bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")
-        
+        bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")        
         if len(selected_miners) == 0:
             self.active_miners = []
             bt.logging.error("\033[31mNo active miners selected in round - check your connectivity \033[0m")
@@ -221,7 +214,6 @@ class Validator(BaseValidatorNeuron):
         """
         Periodically sync miner responses to R2
         """
-
         r2_enabled = self.config.r2.sync_on
         if not r2_enabled:
             bt.logging.trace(f"R2 Sync OFF at {int(time.time())}")        
