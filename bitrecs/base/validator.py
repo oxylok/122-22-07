@@ -47,7 +47,7 @@ from bitrecs.utils.distance import (
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
-from bitrecs.validator.reward import get_rewards
+from bitrecs.validator.reward import CONSENSUS_BONUS_MULTIPLIER, get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
     log_miner_responses_to_sql,
@@ -419,8 +419,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             if top_k and 1==1: #Top score now pulled from top_k
                                 winner = safe_random.sample(top_k, 1)[0]                                
                                 selected_rec = responses.index(winner)                                
-                                rewards[selected_rec] *= 1.05  # 5% multiplicative bonus
-                                bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded 5% bonus - batch: {winner.site_key} \033[0m")
+                                rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
+                                bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                         else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
