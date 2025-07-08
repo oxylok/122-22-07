@@ -235,7 +235,12 @@ class Validator(BaseValidatorNeuron):
                 llm_model="ignored"
             )
             bt.logging.trace(f"Sending response sync request: {update_request}")
-            sync_result = put_r2_upload(update_request, keypair)
+            #sync_result = put_r2_upload(update_request, keypair)
+            loop = asyncio.get_event_loop()
+            sync_result = await loop.run_in_executor(
+                None,
+                lambda: put_r2_upload(update_request, keypair)
+            )
             if sync_result:
                 bt.logging.trace(f"\033[1;32m Success - R2 updated sync_result: {sync_result} \033[0m")
             else:
