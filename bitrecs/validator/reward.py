@@ -298,6 +298,7 @@ def get_rewards(
             rewards.append(0.0)
             continue
         miner_id = response.miner_uid if response.miner_uid is not None else response.miner_hotkey
+        timing_penalty = 0.0
         # Apply percentile-based timing penalty
         if axon_times[i] is not None and len(valid_times) > 1:
             timing_penalty = calculate_percentile_timing_penalty(
@@ -308,6 +309,7 @@ def get_rewards(
         elif axon_times[i] is None:
             # Penalty for missing timing data
             bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey}")
+            timing_penalty = base_reward * 0.5  # Calculate the actual penalty amount
             rewards.append(base_reward * 0.5)
         else:
             # Only one valid response, no relative comparison possible
