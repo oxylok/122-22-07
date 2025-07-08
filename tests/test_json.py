@@ -582,6 +582,7 @@ def test_model_name_validation():
         'deepseek/deepseek-chat-v3-0324',
         'NousResearch/DeepHermes-3-Mistral-24B-Preview',
         'openai/gpt-4ABC',
+        'meta-llama/llama-4-scout'
     ]
 
     invalid_models = [
