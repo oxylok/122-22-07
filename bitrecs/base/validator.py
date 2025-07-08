@@ -28,6 +28,10 @@ import traceback
 import anyio.to_thread
 import wandb
 import anyio
+import subprocess
+from dotenv import load_dotenv
+load_dotenv()
+
 from random import SystemRandom
 safe_random = SystemRandom()
 from typing import List, Union, Optional
@@ -55,10 +59,9 @@ from bitrecs.utils.logging import (
 )
 from bitrecs.utils.wandb import WandbHelper
 from bitrecs.commerce.user_action import UserAction
-from dotenv import load_dotenv
-load_dotenv()
 
-api_queue = SimpleQueue() # Queue of SynapseEventPair
+
+API_QUEUE = SimpleQueue() # Queue of SynapseEventPair
 
 @dataclass
 class SynapseWithEvent:
@@ -88,7 +91,7 @@ async def api_forward(synapse: BitrecsRequest) -> BitrecsRequest:
             miner_hotkey=""
         )
     )
-    api_queue.put(synapse_with_event)
+    API_QUEUE.put(synapse_with_event)
     # Wait until the main thread marks this synapse as processed.
     await anyio.to_thread.run_sync(synapse_with_event.event.wait)
     return synapse_with_event.output_synapse
@@ -111,14 +114,12 @@ class BaseValidatorNeuron(BaseNeuron):
     def __init__(self, config=None):
         super().__init__(config=config)
         np.set_printoptions(suppress=True, precision=8, linewidth=80)
-        # Save a copy of the hotkeys to local memory.
+        
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)      
 
         self.dendrite = bt.dendrite(wallet=self.wallet)
         bt.logging.info(f"Dendrite: {self.dendrite}")
-
-        # Set up initial scoring weights for validation
-        #bt.logging.info("Building validation weights.")
+        
         self.scores = np.zeros(self.metagraph.n, dtype=np.float32)
 
         # Init sync with the network. Updates the metagraph.
@@ -184,45 +185,10 @@ class BaseValidatorNeuron(BaseNeuron):
                     project_name=wandb_project,
                     entity=wandb_entity,
                     config=wandb_config
-                )                
+                )
 
+        bt.logging.info(f"Validator Initialized at block: {self.block}")
 
-    def cleanup_connections(self, axons=None):
-        """Force cleanup of stale connections to specific miner ports"""
-        try:
-            import subprocess
-            
-            # Get all unique ports from current axons if provided
-            ports_to_clean = set()
-            if not axons:
-                return
-            
-            for axon in axons:
-                try:
-                    port = int(axon.port)
-                    ports_to_clean.add(port)
-                except (ValueError, AttributeError):
-                    continue        
-            
-            if not ports_to_clean:
-                bt.logging.warning("No valid miner ports found for cleanup")
-                return
-                
-            bt.logging.trace(f"Cleaning up connections to ports: {sorted(ports_to_clean)}")
-            
-            # Clean up each port
-            for port in ports_to_clean:
-                subprocess.run(['ss', '-K', 'state', 'close-wait', 'dport', '=', f':{port}'], 
-                            capture_output=True, check=False)
-                subprocess.run(['ss', '-K', 'state', 'last-ack', 'dport', '=', f':{port}'], 
-                            capture_output=True, check=False)
-            
-            bt.logging.trace(f"Cleaned up stale connections to {len(ports_to_clean)} miner ports")
-            
-        except Exception as e:
-            bt.logging.error(f"Failed to cleanup connections: {e}")
-            pass
-    
 
     def serve_axon(self):
         """Serve axon to enable external connections."""
@@ -320,6 +286,37 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.error(traceback.format_exc())
             return
         
+        
+    def cleanup_connections(self, axons=None):
+        """Force cleanup of stale connections to specific miner ports"""
+        try:
+            ports_to_clean = set()
+            if not axons:
+                return
+            
+            for axon in axons:
+                try:
+                    port = int(axon.port)
+                    ports_to_clean.add(port)
+                except (ValueError, AttributeError):
+                    continue
+            
+            if not ports_to_clean:
+                bt.logging.warning("No valid miner ports found for cleanup")
+                return
+                
+            bt.logging.trace(f"Cleaning up connections to ports: {sorted(ports_to_clean)}")
+            for port in ports_to_clean:
+                subprocess.run(['ss', '-K', 'state', 'close-wait', 'dport', '=', f':{port}'], 
+                            capture_output=True, check=False)
+                subprocess.run(['ss', '-K', 'state', 'last-ack', 'dport', '=', f':{port}'], 
+                            capture_output=True, check=False)
+            
+            bt.logging.trace(f"Cleaned up stale connections to {len(ports_to_clean)} miner ports")            
+        except Exception as e:
+            bt.logging.error(f"Failed to cleanup connections: {e}")
+            pass
+        
 
     async def main_loop(self):
         """Main loop for the validator."""
@@ -333,10 +330,10 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 try:
-                    if self.step > 1:
-                        if self.should_sync_metagraph():
-                            bt.logging.info(f"\033[33m ReSync Metagraph at step {self.step} \033[0m")
-                            self.resync_metagraph()
+                    
+                    if self.should_sync_metagraph():
+                        bt.logging.info(f"\033[33m ReSync Metagraph at step {self.step} \033[0m")
+                        self.resync_metagraph()
 
                     api_enabled = self.config.api.enabled
                     api_exclusive = self.config.api.exclusive
@@ -344,7 +341,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
                     synapse_with_event: Optional[SynapseWithEvent] = None
                     try:
-                        synapse_with_event = api_queue.get()
+                        synapse_with_event = API_QUEUE.get()
                         bt.logging.info(f"NEW API REQUEST {synapse_with_event.input_synapse.name}")
                     except Empty:
                         # No synapse from API server.
@@ -352,7 +349,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
                     if synapse_with_event is not None and api_enabled: #API request
                         bt.logging.info("** Processing synapse from API server **")                        
-                        bt.logging.info(f"Queue Size: {api_queue.qsize()}")
+                        bt.logging.info(f"Queue Size: {API_QUEUE.qsize()}")
 
                         # Validate the input synapse
                         if not validate_br_request(synapse_with_event.input_synapse):
@@ -436,7 +433,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING Batch Id: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mQueue Size: {api_queue.qsize()} \033[0m")
+                        bt.logging.info(f"\033[1;32mQueue Size: {API_QUEUE.qsize()} \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -756,8 +753,7 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"Score array is empty or all zeros. Skipping save state.")
             return
 
-        state_path = self.config.neuron.full_path + "/state.npz"
-        #bt.logging.trace(f"Saving validator state to {state_path}.")
+        state_path = self.config.neuron.full_path + "/state.npz"        
         np.savez(
             state_path,
             step=self.step,
