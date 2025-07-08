@@ -50,8 +50,6 @@ from bitrecs.utils.distance import (
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
-    read_timestamp, 
-    write_timestamp, 
     log_miner_responses_to_sql,
     write_node_info
 )
@@ -120,7 +118,7 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"Dendrite: {self.dendrite}")
 
         # Set up initial scoring weights for validation
-        bt.logging.info("Building validation weights.")
+        #bt.logging.info("Building validation weights.")
         self.scores = np.zeros(self.metagraph.n, dtype=np.float32)
 
         # Init sync with the network. Updates the metagraph.
@@ -188,6 +186,43 @@ class BaseValidatorNeuron(BaseNeuron):
                     config=wandb_config
                 )                
 
+
+    def cleanup_connections(self, axons=None):
+        """Force cleanup of stale connections to specific miner ports"""
+        try:
+            import subprocess
+            
+            # Get all unique ports from current axons if provided
+            ports_to_clean = set()
+            if not axons:
+                return
+            
+            for axon in axons:
+                try:
+                    port = int(axon.port)
+                    ports_to_clean.add(port)
+                except (ValueError, AttributeError):
+                    continue        
+            
+            if not ports_to_clean:
+                bt.logging.warning("No valid miner ports found for cleanup")
+                return
+                
+            bt.logging.trace(f"Cleaning up connections to ports: {sorted(ports_to_clean)}")
+            
+            # Clean up each port
+            for port in ports_to_clean:
+                subprocess.run(['ss', '-K', 'state', 'close-wait', 'dport', '=', f':{port}'], 
+                            capture_output=True, check=False)
+                subprocess.run(['ss', '-K', 'state', 'last-ack', 'dport', '=', f':{port}'], 
+                            capture_output=True, check=False)
+            
+            bt.logging.trace(f"Cleaned up stale connections to {len(ports_to_clean)} miner ports")
+            
+        except Exception as e:
+            bt.logging.error(f"Failed to cleanup connections: {e}")
+            pass
+    
 
     def serve_axon(self):
         """Serve axon to enable external connections."""
@@ -347,6 +382,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         any_success = any([r for r in responses if r.is_success])
                         if not any_success:
                             bt.logging.error("\033[1;33mRETRY ATTEMPT\033[0m")
+                            self.cleanup_connections(axons=chosen_axons)
                             responses = await self.dendrite.forward(
                                 axons = chosen_axons, 
                                 synapse = api_request,
