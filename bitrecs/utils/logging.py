@@ -169,7 +169,7 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> No
             conn = sqlite3.connect(db_path)
             try:
                 final['step'] = step
-                final['created_at'] = created_at                
+                final['created_at'] = created_at
                 dtype_dict = {col: 'TEXT' for col in final.columns}                
                 cursor = conn.cursor()
                 

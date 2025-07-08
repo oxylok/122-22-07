@@ -19,12 +19,13 @@ Constants:
     VERSION_CHECK_INTERVAL (int): Length of seconds between version checks.
     CATALOG_DUPE_THRESHOLD (float): Threshold for duplicate products in a catalog.
     R2_SYNC_INTERVAL (int): Length of seconds between R2 syncs.
-    RE_PRODUCT_NAME (Pattern): Regular expression to match valid product names.
-    RE_REASON (Pattern): Regular expression to match valid reasons.
-    RE_MODEL (Pattern): Regular expression to match valid model names.
+    RE_PRODUCT_NAME (Pattern): Regular expression to clean product names.
+    RE_REASON (Pattern): Regular expression to clean reasons.
+    RE_MODEL_NAME (Pattern): Regular expression to clean model names.
     CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.
 
 """
+
 ROOT_DIR = Path(bitrecs.__file__).parent.parent
 MAX_DENDRITE_TIMEOUT = 5
 MIN_QUERY_LENGTH = 3
@@ -42,5 +43,6 @@ CATALOG_DUPE_THRESHOLD = 0.05
 R2_SYNC_INTERVAL = 3600
 RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
-RE_MODEL = re.compile(r'^(?:[a-zA-Z0-9]{1,50}/)?[a-zA-Z0-9][a-zA-Z0-9._-]{0,50}(?::[a-zA-Z0-9_-]{1,50})?$')
+RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
+#RE_MODEL_MATCH = re.compile(r'^(?:[a-zA-Z0-9._-]{1,50}/)?[a-zA-Z0-9][a-zA-Z0-9._-]{0,100}(?::[a-zA-Z0-9._-]{1,50})?$')    
 CONVERSION_SCORING_ENABLED = False

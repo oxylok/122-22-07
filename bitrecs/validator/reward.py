@@ -172,11 +172,7 @@ def reward(
             bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
             return 0.0
         if len(response.models_used) != 1:
-            bt.logging.error(f"Miner {response.miner_uid} has multiple models used: {response.miner_hotkey}")
-            return 0.0        
-        if not CONST.RE_MODEL.match(response.models_used[0]):
-            #miner_model = CONST.RE_REASON.sub("", response.models_used[0])
-            bt.logging.error(f"Miner {response.miner_uid} has invalid model used: {response.miner_hotkey}, model: {response.models_used[0]}")
+            bt.logging.error(f"Miner {response.miner_uid} has invalid models used: {response.miner_hotkey}")
             return 0.0
         
         valid_items = set()
