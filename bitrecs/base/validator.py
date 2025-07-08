@@ -455,18 +455,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
                     if self.should_exit:
                         return
-
-                    try:
-                        # if self.step >= 1 and self.step % 5 == 0:
-                        #     self.sync()
-                        if self.step >= 1:
-                            self.sync()
-                      
-                    except Exception as e:
-                        bt.logging.error(traceback.format_exc())
-                        bt.logging.error(f"Failed to sync with exception: {e}")
-                    finally:
-                        self.step += 1
+                  
+                    if self.step >= 1:
+                        self.sync()
+                    
+                    self.step += 1
 
                 except Exception as e:
                     bt.logging.error(f"Main validator RUN loop exception: {e}")
@@ -475,7 +468,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         synapse_with_event.event.set()
                     bt.logging.error(traceback.format_exc())
                     bt.logging.error("\033[31m Sleeping for 60 seconds ... \033[0m")
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(60)                   
                 finally:
                     if api_enabled and api_exclusive:
                         bt.logging.info(f"API MODE - forward finished, ready for next request")                        

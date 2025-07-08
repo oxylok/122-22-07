@@ -100,6 +100,11 @@ class Validator(BaseValidatorNeuron):
         bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
         bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")
         
+        if self.should_sync_metagraph():
+            bt.logging.info(f"Resyncing metagraph in miner_sync - current size: {len(self.scores)} at block {self.subtensor.block}")
+            self.resync_metagraph()
+            bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
+
         #available_uids = get_random_miner_uids(self, k=self.config.neuron.sample_size, exclude=excluded)
         available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
         bt.logging.trace(f"get_random_uids: {available_uids}")
@@ -123,6 +128,11 @@ class Validator(BaseValidatorNeuron):
             stake_limit = float(self.config.neuron.vpermit_tao_limit)
             if this_stake > stake_limit:
                 bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
+                continue
+
+            hk = self.metagraph.axons[uid].hotkey
+            if hk not in self.hotkeys:
+                bt.logging.trace(f"uid: {uid} hotkey {hk} not in hotkeys, skipping")
                 continue
             
             valid_uids.append(uid)
