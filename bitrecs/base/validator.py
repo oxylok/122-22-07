@@ -330,10 +330,6 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 try:
-                    
-                    # if self.should_sync_metagraph():
-                    #     bt.logging.info(f"\033[33m ReSync Metagraph at step {self.step} \033[0m")
-                    #     self.resync_metagraph()
 
                     api_enabled = self.config.api.enabled
                     api_exclusive = self.config.api.exclusive
@@ -395,7 +391,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 continue
 
                         et = time.perf_counter()
-                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                        
+                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
                        
                         # Adjust the scores based on responses from miners.
                         rewards = get_rewards(num_recs=number_of_recs_desired,
@@ -405,7 +401,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
-                            continue                                                
+                            continue
                         
                         # Default - send top score to client
                         selected_rec = rewards.argmax()
@@ -415,8 +411,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
                             if top_k and 1==1: #Top score now pulled from top_k
-                                winner = safe_random.sample(top_k, 1)[0]                                
-                                selected_rec = responses.index(winner)                                
+                                winner = safe_random.sample(top_k, 1)[0]
+                                selected_rec = responses.index(winner)
                                 rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                 bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                         else:
@@ -436,7 +432,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.trace(f"\033[1;32mQueue Size: {API_QUEUE.qsize()} \033[0m")
                         
                         if len(elected.results) == 0:
-                            bt.logging.error("FATAL - Elected response has no results")                            
+                            bt.logging.error("FATAL - Elected response has no results")
                             synapse_with_event.event.set()
                             continue
                         

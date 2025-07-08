@@ -170,7 +170,13 @@ def reward(
             return 0.0
         if not validate_result_schema(num_recs, response.results):
             bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
+            return 0.0
+        if len(response.models_used) != 1:
+            bt.logging.error(f"Miner {response.miner_uid} has multiple models used: {response.miner_hotkey}")
             return 0.0        
+        if not CONST.RE_MODEL.match(response.models_used[0]):
+            bt.logging.error(f"Miner {response.miner_uid} has invalid model used: {response.miner_hotkey}")
+            return 0.0
         
         valid_items = set()
         query_lower = response.query.lower().strip()
@@ -198,19 +204,11 @@ def reward(
             return 0.0
 
         score = BASE_REWARD
-        # headers = response.to_headers()
-        # if "bt_header_axon_process_time" in headers: #take miner walltime
-        #     axon_time = float(headers["bt_header_axon_process_time"])
-        #     bt.logging.trace(f"\033[32mMiner {response.miner_uid} axon_time: {axon_time} \033[0m")
 
-        #     #TODO - warn of minerx
-        #     if axon_time < 1.0:
-        #         bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect axon_time: {axon_time} \033[0m")
-
-        #     score = score - ALPHA_TIME_DECAY * float(axon_time)
-        # else:
-        #     bt.logging.error(f"Error in reward: axon_time not found in headers")
-        #     return 0.0
+        # For now just warn suspect miners
+        plimit = 1.0
+        if response.axon.process_time < plimit or response.dendrite.process_time < plimit:
+            bt.logging.warning(f"\033[33m WARNING Miner {response.miner_uid} suspect time: {response.axon.process_time} \033[0m")
         
         if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
             # Adjust the rewards based on the actions
@@ -222,8 +220,7 @@ def reward(
                 bt.logging.trace(f"\033[32m after: {score} \033[0m")
             else:
                 bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
-
-        #bt.logging.info(f"\033[1;32m Final {score} \033[0m")
+        
         return score
     except Exception as e:
         bt.logging.error(f"Error in rewards: {e}, miner data: {response}")
@@ -266,13 +263,7 @@ def get_rewards(
     axon_times = []
     for response in responses:
         axon_time = response.axon.process_time if response.axon and response.axon.process_time else None
-        axon_times.append(axon_time)
-        # headers = response.to_headers()
-        # if "bt_header_axon_process_time" in headers:
-        #     axon_time = float(headers["bt_header_axon_process_time"])
-        #     axon_times.append(axon_time)
-        # else:
-        #     axon_times.append(None)
+        axon_times.append(axon_time)     
     
     # Filter out None values for percentile calculation
     valid_times = [t for t in axon_times if t is not None]
@@ -342,3 +333,4 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
     
     bt.logging.trace(f"Miner {miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f}")
     return penalty
+    
