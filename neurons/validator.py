@@ -258,7 +258,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"R2 Sync complete in {duration:.2f} seconds")
 
     
-    @execute_periodically(timedelta(seconds=CONST.SCORE_DISPLAY_INTERVAL))
+    @execute_periodically(timedelta(seconds=SCORE_DISPLAY_INTERVAL))
     async def score_sync(self):
         """
         Periodically display score summaries and track changes over time
@@ -298,16 +298,6 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Min: {stats['min']:.6f} | Max: {stats['max']:.6f} | Median: {stats['median']:.6f}")
             max_min_ratio = stats['max']/stats['min'] if stats['min'] > 0 else float('inf')
             bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")
-            
-            # Check for potential issues
-            if stats['cv'] > 0.5:  # High coefficient of variation
-                bt.logging.warning(f"⚠️  High score variance detected (CV: {stats['cv']:.3f})")
-
-            if stats['max']/stats['min'] > 10:  # High max/min ratio
-                bt.logging.warning(f"⚠️  High score divergence detected (ratio: {stats['max']/stats['min']:.2f})")
-
-            if stats['count'] < 5:  # Too few active miners
-                bt.logging.warning(f"⚠️  Low active miner count: {stats['count']}")
             
             # Display top performers
             bt.logging.info(f"\033[1;32m=== TOP PERFORMERS ===\033[0m")
