@@ -37,7 +37,7 @@ from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
 load_dotenv()
 
-SCORE_DISPLAY_INTERVAL = 120
+SCORE_DISPLAY_INTERVAL = 300
 
 class Validator(BaseValidatorNeuron):
     """
