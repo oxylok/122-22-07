@@ -231,8 +231,8 @@ class BaseValidatorNeuron(BaseNeuron):
             suggested = max(2, min(5, num_requests // 3))
             return suggested
         
-        if self.config.logging.trace:
-            print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
+        # if self.config.logging.trace:
+        #     print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
         
         st = time.perf_counter()
         try:
@@ -278,7 +278,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
             et = time.perf_counter()
             diff = et - st
-            bt.logging.info(f"Time taken to analyze similar bitrecs: \033[33m{diff:.2f}\033[0m seconds")
+            bt.logging.info(f"Similarity analysis duration: \033[33m{diff:.2f}\033[0m seconds")
             return most_similar
         
         except Exception as e:            
