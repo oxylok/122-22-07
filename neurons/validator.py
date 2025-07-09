@@ -21,6 +21,8 @@ import os
 import time
 import bittensor as bt
 import asyncio
+import numpy as np
+import traceback
 from datetime import timedelta
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
@@ -35,6 +37,7 @@ from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
 load_dotenv()
 
+SCORE_DISPLAY_INTERVAL = 120
 
 class Validator(BaseValidatorNeuron):
     """
@@ -253,8 +256,174 @@ class Validator(BaseValidatorNeuron):
         finally:
             duration = time.perf_counter() - start_time
             bt.logging.info(f"R2 Sync complete in {duration:.2f} seconds")
+
     
-    
+    @execute_periodically(timedelta(seconds=CONST.SCORE_DISPLAY_INTERVAL))
+    async def score_sync(self):
+        """
+        Periodically display score summaries and track changes over time
+        """
+        bt.logging.trace(f"Score sync ran at {int(time.time())}")
+        
+        try:
+            # Get active scores (non-zero)
+            active_scores = {}
+            for uid, score in enumerate(self.scores):
+                if score > 0:
+                    active_scores[uid] = score
+            
+            if not active_scores:
+                bt.logging.info("No active scores to display")
+                return
+            
+            # Sort by score descending
+            sorted_scores = sorted(active_scores.items(), key=lambda x: x[1], reverse=True)
+            
+            # Calculate statistics
+            scores_array = np.array(list(active_scores.values()))
+            stats = {
+                'count': len(active_scores),
+                'mean': np.mean(scores_array),
+                'std': np.std(scores_array),
+                'min': np.min(scores_array),
+                'max': np.max(scores_array),
+                'median': np.median(scores_array),
+                'cv': np.std(scores_array) / np.mean(scores_array) if np.mean(scores_array) > 0 else 0
+            }
+            
+            # Display summary
+            bt.logging.info(f"\033[1;36m=== SCORE SUMMARY (Step {self.step}) ===\033[0m")
+            bt.logging.info(f"Active miners: {stats['count']}")
+            bt.logging.info(f"Mean: {stats['mean']:.6f} | Std: {stats['std']:.6f} | CV: {stats['cv']:.3f}")
+            bt.logging.info(f"Min: {stats['min']:.6f} | Max: {stats['max']:.6f} | Median: {stats['median']:.6f}")
+            max_min_ratio = stats['max']/stats['min'] if stats['min'] > 0 else float('inf')
+            bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")
+            
+            # Check for potential issues
+            if stats['cv'] > 0.5:  # High coefficient of variation
+                bt.logging.warning(f"⚠️  High score variance detected (CV: {stats['cv']:.3f})")
+
+            if stats['max']/stats['min'] > 10:  # High max/min ratio
+                bt.logging.warning(f"⚠️  High score divergence detected (ratio: {stats['max']/stats['min']:.2f})")
+
+            if stats['count'] < 5:  # Too few active miners
+                bt.logging.warning(f"⚠️  Low active miner count: {stats['count']}")
+            
+            # Display top performers
+            bt.logging.info(f"\033[1;32m=== TOP PERFORMERS ===\033[0m")
+            for i, (uid, score) in enumerate(sorted_scores[:10], 1):
+                percentile = (len(sorted_scores) - i + 1) / len(sorted_scores) * 100
+                bt.logging.info(f"{i:2d}. UID {uid:2d}: {score:.6f} ({percentile:.1f}%)")
+            
+            # Display bottom performers if more than 10 miners
+            if len(sorted_scores) > 10:
+                bt.logging.info(f"\033[1;33m=== BOTTOM PERFORMERS ===\033[0m")
+                for i, (uid, score) in enumerate(sorted_scores[-5:], len(sorted_scores)-4):
+                    percentile = (len(sorted_scores) - i + 1) / len(sorted_scores) * 100
+                    bt.logging.info(f"{i:2d}. UID {uid:2d}: {score:.6f} ({percentile:.1f}%)")
+            
+            # Display score distribution
+            bt.logging.info(f"\033[1;34m=== SCORE DISTRIBUTION ===\033[0m")
+            quartiles = np.percentile(scores_array, [25, 50, 75])
+            bt.logging.info(f"Q1: {quartiles[0]:.6f} | Q2: {quartiles[1]:.6f} | Q3: {quartiles[2]:.6f}")
+            iqr = quartiles[2] - quartiles[0]
+            bt.logging.info(f"IQR: {iqr:.6f}")
+            
+            # Track score changes over time
+            if not hasattr(self, 'score_history'):
+                self.score_history = []
+            
+            # Store current snapshot
+            current_snapshot = {
+                'step': self.step,
+                'timestamp': time.time(),
+                'stats': stats,
+                'top_3': sorted_scores[:3],
+                'active_uids': list(active_scores.keys())
+            }
+            
+            self.score_history.append(current_snapshot)
+            
+            # Keep only last 20 snapshots
+            if len(self.score_history) > 20:
+                self.score_history = self.score_history[-20:]
+            
+            # Show trend analysis if we have enough history
+            if len(self.score_history) >= 3:
+                self._display_score_trends()
+            
+            # Log to wandb if enabled
+            if self.config.wandb.enabled and self.wandb:
+                wandb_data = {
+                    'scores/mean': stats['mean'],
+                    'scores/std': stats['std'],
+                    'scores/cv': stats['cv'],
+                    'scores/max_min_ratio': stats['max']/stats['min'],
+                    'scores/active_count': stats['count']
+                }
+                
+                # Log top 5 scores individually
+                for i, (uid, score) in enumerate(sorted_scores[:5], 1):
+                    wandb_data[f'scores/top_{i}_uid'] = uid
+                    wandb_data[f'scores/top_{i}_score'] = score
+                
+                self.wandb.log(self.step, wandb_data)
+            
+        except Exception as e:
+            bt.logging.error(f"Error in score_sync: {e}")
+            bt.logging.error(traceback.format_exc())
+
+
+    def _display_score_trends(self):
+        """Display score trends over time"""
+        if len(self.score_history) < 2:
+            return
+            
+        current = self.score_history[-1]
+        previous = self.score_history[-2]
+        
+        # Calculate changes
+        mean_change = current['stats']['mean'] - previous['stats']['mean']
+        cv_change = current['stats']['cv'] - previous['stats']['cv']
+        
+        # Check for leadership changes
+        current_leader = current['top_3'][0][0] if current['top_3'] else None
+        previous_leader = previous['top_3'][0][0] if previous['top_3'] else None
+        
+        bt.logging.info(f"\033[1;35m=== SCORE TRENDS ===\033[0m")
+        bt.logging.info(f"Mean change: {mean_change:+.6f}")
+        bt.logging.info(f"CV change: {cv_change:+.4f} {'(more stable)' if cv_change < 0 else '(less stable)'}")
+        
+        if current_leader != previous_leader:
+            bt.logging.info(f"🏆 Leadership change: UID {previous_leader} → UID {current_leader}")
+        
+        # Show UIDs that entered/left top 3
+        current_top3_uids = {uid for uid, _ in current['top_3']}
+        previous_top3_uids = {uid for uid, _ in previous['top_3']}
+        
+        new_top3 = current_top3_uids - previous_top3_uids
+        dropped_top3 = previous_top3_uids - current_top3_uids
+        
+        if new_top3:
+            bt.logging.info(f"📈 Entered top 3: {list(new_top3)}")
+        if dropped_top3:
+            bt.logging.info(f"📉 Dropped from top 3: {list(dropped_top3)}")
+        
+        # Show new/lost miners
+        new_miners = set(current['active_uids']) - set(previous['active_uids'])
+        lost_miners = set(previous['active_uids']) - set(current['active_uids'])
+        
+        if new_miners:
+            bt.logging.info(f"🆕 New active miners: {list(new_miners)}")
+        if lost_miners:
+            bt.logging.info(f"❌ Lost miners: {list(lost_miners)}")
+        
+        # Calculate score stability over longer periods
+        if len(self.score_history) >= 5:
+            last_5_cvs = [snapshot['stats']['cv'] for snapshot in self.score_history[-5:]]
+            cv_trend = np.polyfit(range(5), last_5_cvs, 1)[0]  # Linear trend
+            bt.logging.info(f"CV trend (last 5): {cv_trend:+.4f} {'(stabilizing)' if cv_trend < 0 else '(destabilizing)'}")
+        
 
 async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
@@ -265,7 +434,8 @@ async def main():
                 asyncio.create_task(validator.version_sync()),
                 asyncio.create_task(validator.miner_sync()),
                 asyncio.create_task(validator.action_sync()),
-                asyncio.create_task(validator.response_sync())
+                asyncio.create_task(validator.response_sync()),
+                asyncio.create_task(validator.score_sync())
             ]                    
             await asyncio.gather(*tasks)
             
