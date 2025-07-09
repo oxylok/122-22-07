@@ -540,51 +540,27 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.debug("Stopped")
 
     def set_weights(self):
-        """
-        Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
-        """
-
-        # Check if self.scores contains any NaN values and log a warning if it does.
+        """Sets the validator weights to the metagraph hotkeys based on the scores."""
         bt.logging.info(f"set_weights on chain start")       
         bt.logging.info(f"Scores: {self.scores}")       
 
         if np.isnan(self.scores).any():
-            bt.logging.warning(
-                f"Scores contain NaN values. This may be due to a lack of responses from miners, or a bug in your reward functions."
-            )
+            bt.logging.warning("Scores contain NaN values.")
         
         if np.all(self.scores == 0):
-            bt.logging.warning(
-                f"Scores are all zero. This may be due to a lack of responses from miners, or a bug in your reward functions."
-            )
+            bt.logging.warning("Scores are all zero.")
             return
 
-        # Calculate the average reward for each uid across non-zero values.
-        # Replace any NaN values with 0.
-        # Compute the norm of the scores
-        norm = np.linalg.norm(self.scores, ord=1, axis=0, keepdims=True)
-
-        # Check if the norm is zero or contains NaN values
-        if np.any(norm == 0) or np.isnan(norm).any():
-            norm = np.ones_like(norm)  # Avoid division by zero or NaN
+        # Use normalized scores for weights
+        raw_weights = self.get_normalized_scores()        
         
-        bt.logging.debug("norm", norm)
-        
-        # Compute raw_weights safely
-        raw_weights = self.scores / norm         
-        
-        # Printing type of arr object
-        bt.logging.debug("Array is of type: ", type(raw_weights))
-        # Printing array dimensions (axes)
-        bt.logging.debug("No. of dimensions: ", raw_weights.ndim)
-        # Printing shape of array
-        bt.logging.debug("Shape of array: ", raw_weights.shape)
-        # Printing size (total number of elements) of array
-        bt.logging.debug("Size of array: ", raw_weights.size)
-        # Printing type of elements in array
-        bt.logging.debug("Array stores elements of type: ", raw_weights.dtype)        
-        bt.logging.debug("uids", str(self.metagraph.uids.tolist()))
-        bt.logging.debug("raw_weights", str(raw_weights))
+        bt.logging.debug(f"Array is of type: {type(raw_weights)}")
+        bt.logging.debug(f"No. of dimensions: {raw_weights.ndim}")
+        bt.logging.debug(f"Shape of array: {raw_weights.shape}")
+        bt.logging.debug(f"Size of array: {raw_weights.size}")
+        bt.logging.debug(f"Array stores elements of type: {raw_weights.dtype}")
+        bt.logging.debug(f"uids: {self.metagraph.uids.tolist()}")
+        bt.logging.debug(f"raw_weights: {raw_weights}")
         
         # Process the raw weights to final_weights via subtensor limitations.
         try:
@@ -683,53 +659,74 @@ class BaseValidatorNeuron(BaseNeuron):
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
-    def update_scores(self, rewards: np.ndarray, uids: List[int]):
-        """Performs exponential moving average on the scores based on the rewards received from the miners."""
 
+    def update_scores(self, rewards: np.ndarray, uids: List[int]):
+        """Adaptive alpha and normalization"""
+        
         # Check if rewards contains NaN values.
         if np.isnan(rewards).any():
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
             # Replace any NaN values in rewards with 0.
             rewards = np.nan_to_num(rewards, nan=0)
 
-        # Ensure rewards is a numpy array.
-        rewards = np.asarray(rewards)
-
-        # Check if `uids` is already a numpy array and copy it to avoid the warning.
+        rewards = np.asarray(rewards, dtype=np.float32)
+        
         if isinstance(uids, np.ndarray):
             uids_array = uids.copy()
         else:
-            uids_array = np.array(uids)
+            uids_array = np.array(uids, dtype=np.int64)
 
-        # Handle edge case: If either rewards or uids_array is empty.
         if rewards.size == 0 or uids_array.size == 0:
-            bt.logging.info(f"rewards: {rewards}, uids_array: {uids_array}")
-            bt.logging.warning(
-                "Either rewards or uids_array is empty. No updates will be performed."
-            )
+            bt.logging.warning("Either rewards or uids_array is empty. No updates will be performed.")
             return
 
-        # Check if sizes of rewards and uids_array match.
         if rewards.size != uids_array.size:
-            raise ValueError(
-                f"Shape mismatch: rewards array of shape {rewards.shape} "
-                f"cannot be broadcast to uids array of shape {uids_array.shape}"
-            )
+            raise ValueError(f"Shape mismatch: rewards {rewards.shape} vs uids {uids_array.shape}")
 
-        # Compute forward pass rewards, assumes uids are mutually exclusive.
-        # shape: [ metagraph.n ]
-        scattered_rewards: np.ndarray = np.zeros_like(self.scores)
+        # Scatter rewards
+        scattered_rewards = np.zeros_like(self.scores, dtype=np.float32)
         scattered_rewards[uids_array] = rewards
-        #bt.logging.debug(f"Scattered rewards: {rewards}")
-
-        # Update scores with rewards produced by this step.
-        # shape: [ metagraph.n ]
-        alpha: float = self.config.neuron.moving_average_alpha
-        self.scores: np.ndarray = (
-            alpha * scattered_rewards + (1 - alpha) * self.scores
-        )
-        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
         
+        # Adaptive alpha for zero rewards
+        default_alpha = self.config.neuron.moving_average_alpha
+        low_alpha = default_alpha / 2
+        
+        # Apply EMA only to miners that were actually queried
+        for i, uid in enumerate(uids_array):
+            if rewards[i] == 0:
+                # Zero reward - use gentle decay
+                self.scores[uid] = (1 - low_alpha) * self.scores[uid]
+            else:
+                # Non-zero reward - use normal EMA
+                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
+        
+        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+
+    
+    def get_normalized_scores(self):
+        """Get normalized and transformed scores for weight setting"""
+        # Normalize to sum to 1
+        sum_scores = np.sum(self.scores)
+        if sum_scores > 0:
+            normalized = self.scores / sum_scores
+        else:
+            normalized = np.ones_like(self.scores) / len(self.scores)
+        
+        # Prevent extreme values before transformation
+        normalized = np.clip(normalized, 1e-6, 1.0)
+        
+        # Apply non-linear transformation
+        nonlinear_power = 1.5
+        transformed = np.power(normalized, nonlinear_power)
+        
+        # Renormalize
+        sum_transformed = np.sum(transformed)
+        if sum_transformed > 0:
+            final_scores = transformed / sum_transformed
+        else:
+            final_scores = np.ones_like(transformed) / len(transformed)
+        
+        return final_scores
 
     def save_state(self):
         if self.first_sync:
