@@ -296,8 +296,18 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Active miners: {stats['count']}")
             bt.logging.info(f"Mean: {stats['mean']:.6f} | Std: {stats['std']:.6f} | CV: {stats['cv']:.3f}")
             bt.logging.info(f"Min: {stats['min']:.6f} | Max: {stats['max']:.6f} | Median: {stats['median']:.6f}")
-            max_min_ratio = stats['max']/stats['min'] if stats['min'] > 0 else float('inf')
-            bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")
+            
+            # Calculate max/min ratio more safely
+            min_threshold = 1e-6  # Define minimum threshold
+            safe_min = max(stats['min'], min_threshold)
+            max_min_ratio = stats['max'] / safe_min
+
+            # Add warning for very small scores
+            if stats['min'] < min_threshold:
+                bt.logging.warning(f"⚠️  Very small minimum score detected: {stats['min']:.8f}")
+                bt.logging.info(f"Max/Min ratio (safe): {max_min_ratio:.2f}")
+            else:
+                bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")
             
             # Display top performers
             bt.logging.info(f"\033[1;32m=== TOP PERFORMERS ===\033[0m")
@@ -359,6 +369,19 @@ class Validator(BaseValidatorNeuron):
                 
                 self.wandb.log(self.step, wandb_data)
             
+            # Check for potential issues
+            if stats['cv'] > 0.5:
+                bt.logging.warning(f"⚠️  High score variance detected (CV: {stats['cv']:.3f})")
+
+            if max_min_ratio > 10:
+                bt.logging.warning(f"⚠️  High score divergence detected (ratio: {max_min_ratio:.2f})")
+
+            if stats['count'] < 5:
+                bt.logging.warning(f"⚠️  Low active miner count: {stats['count']}")
+            
+            # Check score health
+            self._check_score_health(stats, max_min_ratio)
+            
         except Exception as e:
             bt.logging.error(f"Error in score_sync: {e}")
             bt.logging.error(traceback.format_exc())
@@ -414,6 +437,26 @@ class Validator(BaseValidatorNeuron):
             cv_trend = np.polyfit(range(5), last_5_cvs, 1)[0]  # Linear trend
             bt.logging.info(f"CV trend (last 5): {cv_trend:+.4f} {'(stabilizing)' if cv_trend < 0 else '(destabilizing)'}")
         
+    def _check_score_health(self, stats, max_min_ratio):
+        """Check if scores are healthy and provide recommendations"""
+        health_issues = []
+        
+        if stats['cv'] > 0.8:
+            health_issues.append("Very high variance - consider increasing moving average alpha")
+        
+        if max_min_ratio > 20:
+            health_issues.append("Extreme score divergence - consider score capping")
+        
+        if stats['count'] < 5:
+            health_issues.append("Too few active miners - check network connectivity")
+        
+        if health_issues:
+            bt.logging.warning(f"🩺 Score Health Issues:")
+            for issue in health_issues:
+                bt.logging.warning(f"   - {issue}")
+        else:
+            bt.logging.info(f"✅ Score health: Good")
+
 
 async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
