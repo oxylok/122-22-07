@@ -1,12 +1,15 @@
 import re
 import bitrecs
+import datetime
 from pathlib import Path
+from datetime import datetime, timezone
 
 """
 Global constants
 
 Constants:
     ROOT_DIR (Path): Root directory of the project.
+    SCHEMA_UPDATE_CUTOFF (datetime): Cutoff date for schema updates.
     MAX_DENDRITE_TIMEOUT (int): Length of seconds given to miners to respond to a dendrite request.
     MIN_QUERY_LENGTH (int): Minimum length of a query.
     MAX_QUERY_LENGTH (int): Maximum length of a query.
@@ -22,11 +25,12 @@ Constants:
     RE_PRODUCT_NAME (Pattern): Regular expression to clean product names.
     RE_REASON (Pattern): Regular expression to clean reasons.
     RE_MODEL_NAME (Pattern): Regular expression to clean model names.
-    CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.
+    CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.    
 
 """
 
 ROOT_DIR = Path(bitrecs.__file__).parent.parent
+SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 21, tzinfo=timezone.utc)
 MAX_DENDRITE_TIMEOUT = 5
 MIN_QUERY_LENGTH = 3
 MAX_QUERY_LENGTH = 40
@@ -44,5 +48,4 @@ R2_SYNC_INTERVAL = 3600
 RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
 RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
-#RE_MODEL_MATCH = re.compile(r'^(?:[a-zA-Z0-9._-]{1,50}/)?[a-zA-Z0-9][a-zA-Z0-9._-]{0,100}(?::[a-zA-Z0-9._-]{1,50})?$')    
 CONVERSION_SCORING_ENABLED = False
