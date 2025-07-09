@@ -716,7 +716,7 @@ class BaseValidatorNeuron(BaseNeuron):
         normalized = np.clip(normalized, 1e-6, 1.0)
         
         # Apply non-linear transformation
-        nonlinear_power = 1.5
+        nonlinear_power = 1.2
         transformed = np.power(normalized, nonlinear_power)
         
         # Renormalize
