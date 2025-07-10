@@ -20,12 +20,17 @@ Constants:
     MINER_BATTERY_INTERVAL (int): Length of seconds between miner checks.
     ACTION_SYNC_INTERVAL (int): Length of seconds between action syncs.
     VERSION_CHECK_INTERVAL (int): Length of seconds between version checks.
+    COOLDOWN_SYNC_INTERVAL (int): Length of seconds between cooldown syncs.
     CATALOG_DUPE_THRESHOLD (float): Threshold for duplicate products in a catalog.
     R2_SYNC_INTERVAL (int): Length of seconds between R2 syncs.
     RE_PRODUCT_NAME (Pattern): Regular expression to clean product names.
     RE_REASON (Pattern): Regular expression to clean reasons.
     RE_MODEL_NAME (Pattern): Regular expression to clean model names.
     CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.    
+    MIN_ACTIVE_MINERS (int): Minimum number of active miners required.
+    MAX_MINER_ATTEMPTS (int): Maximum number of attempts for miner battery loading.
+    SCORE_DISPLAY_ENABLED (bool): Flag to enable score display.
+    SCORE_DISPLAY_INTERVAL (int): Length of seconds between score displays.
 
 """
 
@@ -51,10 +56,7 @@ RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
 RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
 CONVERSION_SCORING_ENABLED = False
-
 MIN_ACTIVE_MINERS = 8
 MAX_MINER_ATTEMPTS = 3
-
-
 SCORE_DISPLAY_ENABLED = True
 SCORE_DISPLAY_INTERVAL = 180

@@ -98,7 +98,7 @@ class Validator(BaseValidatorNeuron):
     async def miner_sync(self):
         """
         Checks the miners in the metagraph for connectivity and updates the active miners list.
-        Enhanced with retry logic and pause on failure to maintain validator consensus.
+        Enhanced with retry logic and pause on failure after MAX_MINER_ATTEMPTS.
         """
         bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
         bt.logging.trace(f"neuron.sample_size: {self.config.neuron.sample_size}")
@@ -202,14 +202,14 @@ class Validator(BaseValidatorNeuron):
         
         if len(selected_miners) < CONST.MIN_ACTIVE_MINERS:
             bt.logging.error(f"\033[1;31mCRITICAL: Only found {len(selected_miners)} active miners after {CONST.MAX_MINER_ATTEMPTS} attempts (need {CONST.MIN_ACTIVE_MINERS}) \033[0m")
-            bt.logging.error(f"\033[1;31mValidator will pause to avoid divergence from other validators \033[0m")            
+            bt.logging.error(f"\033[1;31mValidator will pause for a minute \033[0m")            
             
             # Clean up active miners - validator will not handle requests 
             self.active_miners = []
             
             # Sleep longer and then recursively retry
-            bt.logging.info(f"Sleeping for 30 seconds before retrying miner discovery...")
-            await asyncio.sleep(30)
+            bt.logging.info(f"Sleeping for 60 seconds before retrying miner discovery...")
+            await asyncio.sleep(60)
             
             # Recursive retry - call miner_sync again
             bt.logging.info(f"Retrying miner discovery after pause...")
@@ -295,7 +295,7 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=CONST.SCORE_DISPLAY_INTERVAL))
     async def score_sync(self):
         """
-        Enhanced score sync with normalized weights and EMA insights
+        Enhanced score display with normalized weights and EMA insights
         """
         bt.logging.trace(f"Score sync ran at {int(time.time())}")
         
@@ -412,7 +412,7 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=CONST.COOLDOWN_SYNC_INTERVAL))
     async def cooldown_sync(self):
         """
-        Load cooldowns to timeout lazy miners.
+        Load cooldowns to decay lazy miners.
 
         """
         try:
