@@ -7,14 +7,17 @@ def display_normalized_analysis(validator_instance):
     try:
         normalized_scores = validator_instance.get_normalized_scores()
         
-        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")
+        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")        
         
-        # Show raw score statistics first
-        raw_active = validator_instance.scores[validator_instance.scores > 0]
+        raw_active = validator_instance.scores[validator_instance.scores > 1e-10]  # Use small threshold instead of 0
         if len(raw_active) > 0:
-            bt.logging.info(f"Raw score range: {np.min(raw_active):.8f} - {np.max(raw_active):.6f}")
+            bt.logging.info(f"Raw score range: {np.min(raw_active):.6f} - {np.max(raw_active):.6f}")
             raw_ratio = np.max(raw_active) / np.min(raw_active)
             bt.logging.info(f"Raw score ratio: {raw_ratio:.2f}")
+            bt.logging.info(f"Active scores: {len(raw_active)} (filtered from {len(validator_instance.scores)})")
+        else:
+            bt.logging.warning("No significant raw scores found")
+            return
         
         active_normalized = {}
         for uid, norm_score in enumerate(normalized_scores):
@@ -45,6 +48,11 @@ def display_normalized_analysis(validator_instance):
         for i, (uid, weight) in enumerate(sorted_normalized[:5], 1):
             percentage = weight * 100
             bt.logging.info(f"  {i}. UID {uid:2d}: {weight:.6f} ({percentage:.2f}%)")
+        
+        # Show which UIDs were filtered out
+        zero_score_uids = [uid for uid, score in enumerate(validator_instance.scores) if score <= 1e-10]
+        if zero_score_uids:
+            bt.logging.info(f"Zero/near-zero score UIDs: {zero_score_uids}")
             
         # Check for weight concentration
         top_3_weight = sum(weight for _, weight in sorted_normalized[:3])
