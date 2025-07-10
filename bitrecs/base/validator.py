@@ -154,6 +154,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
         self.active_miners: List[int] = []
+        self.suspect_miners = List[int] = []
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         

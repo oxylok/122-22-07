@@ -3,7 +3,7 @@ import socket
 import bittensor as bt
 import numpy as np
 import random
-from typing import List
+from typing import List, Tuple
 
 
 def check_uid_availability(
@@ -111,6 +111,54 @@ def get_random_miner_uids2(self,
         return np.array(random.sample(avail_uids, k)).astype(int).tolist()
     else:
         return []
+
+
+
+def get_random_miner_uids3(self,
+    k: int, 
+    banned_coldkeys: set = None, 
+    banned_hotkeys: set = None,
+    banned_ips: set = None) -> Tuple[list[int], list[int]]:
+
+    """Fetch random miners that meet criteria."""    
+    
+    avail_uids = [] 
+    suspect_uids = []  
+    for uid in range(self.metagraph.n.item()):
+        if not self.metagraph.axons[uid].is_serving:
+            continue
+        # if self.metagraph.validator_permit[uid] and self.metagraph.S[uid] > 1000:
+        #     continue
+        # if self.metagraph.S[uid] == 0:
+        #     continue
+
+        if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
+            suspect_uids.append(uid)            
+            continue
+        if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
+            suspect_uids.append(uid)            
+            continue
+        if banned_ips and self.metagraph.axons[uid].ip in banned_ips:
+            suspect_uids.append(uid)            
+            continue
+    
+        avail_uids.append(uid)
+
+    suspect_uids = list(set(suspect_uids))
+    bt.logging.trace(f"\033[32m pre candidate_uids: {avail_uids} from k {k} \033[0m")
+    #bt.logging.trace(f"\033[33m Total nodes on cooldown: {len(suspect_uids)} \033[0m")
+    bt.logging.trace(f"\033[33m cooldown nodes: {suspect_uids} \033[0m")
+
+    # Check if candidate_uids contain enough for querying, if not grab all avaliable uids
+    if 0 < len(avail_uids) < k:
+        bt.logging.warning(
+            f"Requested {k} uids but only {len(avail_uids)} were available. To disable this warning reduce the sample size (--neuron.sample_size)"
+        )
+        return np.array(avail_uids).astype(int).tolist(), suspect_uids
+    elif len(avail_uids) >= k:
+        return np.array(random.sample(avail_uids, k)).astype(int).tolist(), suspect_uids
+    else:
+        return [], suspect_uids
 
 
 

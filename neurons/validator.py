@@ -30,7 +30,7 @@ from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
 from bitrecs.utils.r2 import ValidatorUploadRequest
 from bitrecs.utils.runtime import execute_periodically
-from bitrecs.utils.uids import get_random_miner_uids2, ping_miner_uid
+from bitrecs.utils.uids import get_random_miner_uids3, ping_miner_uid
 from bitrecs.utils.version import LocalMetadata
 from bitrecs.validator import forward
 from bitrecs.protocol import BitrecsRequest
@@ -118,12 +118,13 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_ATTEMPTS}: Looking for miners...")            
             
             # Get random miners
-            available_uids = get_random_miner_uids2(self,
+            available_uids, suspect_uids = get_random_miner_uids3(self,
                 k=self.config.neuron.sample_size, 
                 banned_coldkeys=self.BANNED_COLDKEYS,
                 banned_hotkeys=self.BANNED_HOTKEYS,
                 banned_ips=self.BANNED_IPS)
             bt.logging.trace(f"get_random_uids: {available_uids}")
+            self.suspect_miners = suspect_uids
             
             chosen_uids = available_uids
             bt.logging.trace(f"chosen_uids: {chosen_uids}")
@@ -151,7 +152,7 @@ class Validator(BaseValidatorNeuron):
                 if hk not in self.hotkeys:
                     bt.logging.trace(f"uid: {uid} hotkey {hk} not in hotkeys, skipping")
                     continue
-                valid_uids.append(uid)
+                valid_uids.append(uid)            
             
             if len(valid_uids) == 0:
                 bt.logging.error(f"\033[31mNo valid miners found for ping test in attempt {attempt + 1} \033[0m")
