@@ -24,6 +24,8 @@ import asyncio
 import numpy as np
 import traceback
 from datetime import timedelta
+
+import requests
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
 from bitrecs.utils.r2 import ValidatorUploadRequest
@@ -412,6 +414,24 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(traceback.format_exc())
         
 
+    @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
+    async def cooldown_sync(self):
+        """
+        Load cooldowns to timeout lazy miners.
+
+        """
+        try:             
+            proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
+            r = requests.get(f"{proxy_url}/cooldown")
+            cooldowns = r.json()
+            BANNED_IPS = cooldowns["banned_ips"] or []
+            BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
+            BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
+            bt.logging.info(f"Cooldowns updated: {len(BANNED_IPS)} IPs, {len(BANNED_COLDKEYS)} coldkeys, {len(BANNED_HOTKEYS)} hotkeys")
+        except Exception as e:
+            bt.logging.error(f"cooldown_sync Exception: {e}")      
+      
+
 
 async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
@@ -419,6 +439,7 @@ async def main():
         start_time = time.time()      
         while True:
             tasks = [
+                asyncio.create_task(validator.cooldown_sync()),
                 asyncio.create_task(validator.version_sync()),
                 asyncio.create_task(validator.miner_sync()),
                 asyncio.create_task(validator.action_sync()),
