@@ -245,7 +245,7 @@ def get_rewards(
     - np.ndarray: An array of rewards for the given query and responses.
     """
 
-    if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
+    if num_recs < CONST.MIN_RECS_PER_REQUEST or num_recs > CONST.MAX_RECS_PER_REQUEST:
         bt.logging.error(f"Invalid number of recommendations: {num_recs}")
         return np.zeros(len(responses), dtype=float)
     
