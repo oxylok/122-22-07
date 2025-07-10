@@ -43,16 +43,15 @@ from bitrecs.metrics.score_metrics import (
 )
 
 
-SCORE_DISPLAY_INTERVAL = 180
+BANNED_IPS = [""]
+BANNED_COLDKEYS = [""]
+BANNED_HOTKEYS = [""]
 
 
 class Validator(BaseValidatorNeuron):
     """
-    Your validator neuron class. You should use this class to define your validator's behavior. In particular, you should replace the forward function with your own logic.
+    Bitrecs Validator Neuron
 
-    This class inherits from the BaseValidatorNeuron class, which in turn inherits from BaseNeuron. The BaseNeuron class takes care of routine tasks such as setting up wallet, subtensor, metagraph, logging directory, parsing config, etc. You can override any of the methods in BaseNeuron if you need to customize the behavior.
-
-    This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
     def __init__(self, config=None):
@@ -122,7 +121,11 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_ATTEMPTS}: Looking for miners...")            
             
             # Get random miners
-            available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
+            available_uids = get_random_miner_uids2(self,
+                k=self.config.neuron.sample_size, 
+                banned_coldkeys=BANNED_COLDKEYS,
+                banned_hotkeys=BANNED_HOTKEYS,
+                banned_ips=BANNED_IPS)
             bt.logging.trace(f"get_random_uids: {available_uids}")
             
             chosen_uids = available_uids
@@ -238,18 +241,11 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
     async def action_sync(self):
         """
-        Periodically fetch user actions 
-        For mainnet, we retro 30 days as min end date
+        #TODO: This method is currently a placeholder and does not perform any actions.
+                
         """
-        #sd, ed = UserAction.get_default_range(days_ago=1)
-        sd, ed = UserAction.get_retro_range()
-        bt.logging.trace(f"Gathering user actions for range: {sd} to {ed}")
-        try:
-            self.user_actions = UserAction.get_actions_range(start_date=sd, end_date=ed)
-            bt.logging.trace(f"Success - User actions size: \033[1;32m {len(self.user_actions)} \033[0m")
-        except Exception as e:
-            bt.logging.error(f"Failed to get user actions with exception: {e}")
-        return
+        self.user_actions = []
+        return        
     
     
     @execute_periodically(timedelta(seconds=CONST.R2_SYNC_INTERVAL))
@@ -299,7 +295,7 @@ class Validator(BaseValidatorNeuron):
 
     
     
-    @execute_periodically(timedelta(seconds=SCORE_DISPLAY_INTERVAL))
+    @execute_periodically(timedelta(seconds=CONST.SCORE_DISPLAY_INTERVAL))
     async def score_sync(self):
         """
         Enhanced score sync with normalized weights and EMA insights
@@ -428,7 +424,7 @@ async def main():
                 asyncio.create_task(validator.action_sync()),
                 asyncio.create_task(validator.response_sync())                
             ]                    
-            if validator.config.logging.trace:
+            if validator.config.logging.trace and CONST.SCORE_DISPLAY_ENABLED:
                 tasks.append(asyncio.create_task(validator.score_sync()))
                 
             await asyncio.gather(*tasks)
