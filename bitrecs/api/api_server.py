@@ -4,6 +4,7 @@ import time
 import hmac
 import hashlib
 import threading
+import traceback
 import bittensor as bt
 from dataclasses import asdict
 from typing import Callable
@@ -364,7 +365,8 @@ class ApiServer:
                                 content={"detail": "error", "status_code": h.status_code})
 
         except Exception as e:
-            bt.logging.error(f"\033[31m ERROR API generate_product_rec_testnet:\033[0m {e}")            
+            bt.logging.error(f"\033[31m ERROR API generate_product_rec_testnet:\033[0m {e}")
+            bt.logging.error(f"\033[31m TRACEBACK:\033[0m\n{traceback.format_exc()}")
             return JSONResponse(status_code=500,
                                 content={"detail": "error", "status_code": 500})
         
@@ -441,7 +443,8 @@ class ApiServer:
                                 content={"detail": "error", "status_code": h.status_code})
 
         except Exception as e:
-            bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")            
+            bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")
+            bt.logging.error(f"\033[31m TRACEBACK:\033[0m\n{traceback.format_exc()}")
             return JSONResponse(status_code=500,
                                 content={"detail": "error", "status_code": 500})
 
