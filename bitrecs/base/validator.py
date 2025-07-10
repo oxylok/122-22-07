@@ -51,7 +51,7 @@ from bitrecs.utils.distance import (
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
-from bitrecs.validator.reward import CONSENSUS_BONUS_MULTIPLIER, get_rewards
+from bitrecs.validator.reward import CONSENSUS_BONUS_MULTIPLIER, SUSPECT_MINER_DECAY, get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
     log_miner_responses_to_sql,
@@ -666,7 +666,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
 
     def update_scores(self, rewards: np.ndarray, uids: List[int]):
-        """Adaptive alpha and normalization"""
+        """Adaptive alpha and normalization, including decay for suspect_miners."""
         
         # Check if rewards contains NaN values.
         if np.isnan(rewards).any():
@@ -704,7 +704,14 @@ class BaseValidatorNeuron(BaseNeuron):
             else:
                 # Non-zero reward - use normal EMA
                 self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
-        
+
+        # Decay scores for suspect_miners (not in uids_array)
+        for suspect_uid in self.suspect_miners:
+            if suspect_uid not in uids_array and 0 <= suspect_uid < len(self.scores):
+                old_score = self.scores[suspect_uid]
+                self.scores[suspect_uid] *= SUSPECT_MINER_DECAY
+                bt.logging.debug(f"Decayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f}")
+
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
     
