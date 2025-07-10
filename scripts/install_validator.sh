@@ -84,7 +84,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Installation steps
-run_command "apt install ufw -y" "Installing UFW..." 10
+run_command "apt install ufw -y" "Installing UFW...you must configure ports and enable it manually" 10
 run_command "apt-get update && apt-get upgrade -y" "Updating system packages..." 20
 # Firewall rules are now configured manually. See docs/running_validator.md "UFW Firewall" section.
 # run_command "ufw allow 22" "Configuring firewall (SSH)..." 30

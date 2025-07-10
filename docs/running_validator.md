@@ -19,6 +19,9 @@ regen_hotkey
 Before running the validator, edit the .env environment file and fill it in to match your config specs.
 
 ## 4. Firewall Configuration
+
+**Warning:** port 22 is NOT required to be open for validators - we have it here to ensure you do not get disconnected if you activate UFW. The only required port is 7779. Port 8091 is bittensor default port you are free to use whatever you want for subtensor.
+
 Configure the firewall using UFW. These rules allow SSH access and communication on the miner port (8091):
 
 ```bash
