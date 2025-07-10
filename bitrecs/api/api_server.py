@@ -444,9 +444,11 @@ class ApiServer:
             return JSONResponse(status_code=h.status_code,
                                 content={"detail": "error", "status_code": h.status_code})
 
-        except Exception as e:
+        except Exception as e:            
             bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")
             bt.logging.error(f"\033[31m TRACEBACK:\033[0m\n{traceback.format_exc()}")
+            bt.logging.trace(response)
+            
             return JSONResponse(status_code=500,
                                 content={"detail": "error", "status_code": 500})
 
