@@ -403,7 +403,8 @@ class ApiServer:
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
                 bt.logging.error(f"API invalid catalog size: {catalog_size} skus")
                 return JSONResponse(status_code=400,
-                                    content={"detail": "error - invalid catalog - size", "status_code": 400})
+                                    content={"detail": "error - invalid catalog - size", "status_code": 400})           
+            
             
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
             sn_t = time.perf_counter()
@@ -411,14 +412,14 @@ class ApiServer:
             subnet_time = time.perf_counter() - sn_t
             response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
             bt.logging.trace(response_text)
-
-            if len(response.results) == 0:
-                bt.logging.error(f"API forward_fn response has no results")
-                return JSONResponse(status_code=500,
-                                    content={"detail": "error - forward", "status_code": 500})         
             
-            final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
-            #final_recs = [json.loads(idx) for idx in response.results]
+            if len(response.results) != request.num_results:
+                bt.logging.error(f"API forward_fn response has a num_recs mismatch")
+                return JSONResponse(status_code=500,
+                                    content={"detail": "error - forward", "status_code": 500})
+            
+            #final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
+            final_recs = [json.loads(idx) for idx in response.results]
             response = {
                 "user": "",
                 "original_query": response.query,
