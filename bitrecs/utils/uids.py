@@ -133,7 +133,7 @@ def get_random_miner_uids3(self,
         #     continue
 
         if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
-            suspect_uids.append(uid)            
+            suspect_uids.append(uid)
             continue
         if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
             suspect_uids.append(uid)            

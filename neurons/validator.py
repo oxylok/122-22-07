@@ -409,7 +409,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(traceback.format_exc())
         
 
-    @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
+    @execute_periodically(timedelta(seconds=CONST.COOLDOWN_SYNC_INTERVAL))
     async def cooldown_sync(self):
         """
         Load cooldowns to timeout lazy miners.
