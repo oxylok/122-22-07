@@ -45,11 +45,6 @@ from bitrecs.metrics.score_metrics import (
 )
 
 
-BANNED_IPS = [""]
-BANNED_COLDKEYS = [""]
-BANNED_HOTKEYS = [""]
-
-
 class Validator(BaseValidatorNeuron):
     """
     Bitrecs Validator Neuron
@@ -125,9 +120,9 @@ class Validator(BaseValidatorNeuron):
             # Get random miners
             available_uids = get_random_miner_uids2(self,
                 k=self.config.neuron.sample_size, 
-                banned_coldkeys=BANNED_COLDKEYS,
-                banned_hotkeys=BANNED_HOTKEYS,
-                banned_ips=BANNED_IPS)
+                banned_coldkeys=self.BANNED_COLDKEYS,
+                banned_hotkeys=self.BANNED_HOTKEYS,
+                banned_ips=self.BANNED_IPS)
             bt.logging.trace(f"get_random_uids: {available_uids}")
             
             chosen_uids = available_uids
@@ -424,12 +419,13 @@ class Validator(BaseValidatorNeuron):
             proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
             r = requests.get(f"{proxy_url}/cooldown")
             cooldowns = r.json()
-            BANNED_IPS = cooldowns["banned_ips"] or []
-            BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
-            BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
-            bt.logging.info(f"Cooldowns updated: {len(BANNED_IPS)} IPs, {len(BANNED_COLDKEYS)} coldkeys, {len(BANNED_HOTKEYS)} hotkeys")
+            r.raise_for_status()
+            self.BANNED_IPS = cooldowns["banned_ips"] or []
+            self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
+            self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []            
+            bt.logging.trace(f"Cooldowns updated: {len(self.BANNED_IPS)} IPs, {len(self.BANNED_IPS)} coldkeys, {len(self.BANNED_COLDKEYS)} hotkeys")
         except Exception as e:
-            bt.logging.error(f"cooldown_sync Exception: {e}")      
+            bt.logging.error(f"cooldown_sync Exception: {e}")
       
 
 
