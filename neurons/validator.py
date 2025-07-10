@@ -37,6 +37,16 @@ from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
 load_dotenv()
 
+from bitrecs.metrics.score_metrics import (
+    display_normalized_analysis,
+    display_ema_insights,
+    display_transformation_impact,
+    display_score_trends,
+    check_score_health,
+    run_complete_score_analysis
+)
+
+
 SCORE_DISPLAY_INTERVAL = 300
 
 class Validator(BaseValidatorNeuron):
@@ -258,10 +268,11 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"R2 Sync complete in {duration:.2f} seconds")
 
     
+    
     @execute_periodically(timedelta(seconds=SCORE_DISPLAY_INTERVAL))
     async def score_sync(self):
         """
-        Periodically display score summaries and track changes over time
+        Enhanced score sync with normalized weights and EMA insights
         """
         bt.logging.trace(f"Score sync ran at {int(time.time())}")
         
@@ -298,11 +309,10 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Min: {stats['min']:.6f} | Max: {stats['max']:.6f} | Median: {stats['median']:.6f}")
             
             # Calculate max/min ratio more safely
-            min_threshold = 1e-6  # Define minimum threshold
+            min_threshold = 1e-6
             safe_min = max(stats['min'], min_threshold)
             max_min_ratio = stats['max'] / safe_min
 
-            # Add warning for very small scores
             if stats['min'] < min_threshold:
                 bt.logging.warning(f"⚠️  Very small minimum score detected: {stats['min']:.8f}")
                 bt.logging.info(f"Max/Min ratio (safe): {max_min_ratio:.2f}")
@@ -314,13 +324,6 @@ class Validator(BaseValidatorNeuron):
             for i, (uid, score) in enumerate(sorted_scores[:10], 1):
                 percentile = (len(sorted_scores) - i + 1) / len(sorted_scores) * 100
                 bt.logging.info(f"{i:2d}. UID {uid:2d}: {score:.6f} ({percentile:.1f}%)")
-            
-            # Display bottom performers if more than 10 miners
-            if len(sorted_scores) > 10:
-                bt.logging.info(f"\033[1;33m=== BOTTOM PERFORMERS ===\033[0m")
-                for i, (uid, score) in enumerate(sorted_scores[-5:], len(sorted_scores)-4):
-                    percentile = (len(sorted_scores) - i + 1) / len(sorted_scores) * 100
-                    bt.logging.info(f"{i:2d}. UID {uid:2d}: {score:.6f} ({percentile:.1f}%)")
             
             # Display score distribution
             bt.logging.info(f"\033[1;34m=== SCORE DISTRIBUTION ===\033[0m")
@@ -346,116 +349,42 @@ class Validator(BaseValidatorNeuron):
             
             # Keep only last 20 snapshots
             if len(self.score_history) > 20:
-                self.score_history = self.score_history[-20:]
+                self.score_history = self.score_history[-20:]            
+          
+            run_complete_score_analysis(self)
             
-            # Show trend analysis if we have enough history
-            if len(self.score_history) >= 3:
-                self._display_score_trends()
+            # Enhanced health checks
+            check_score_health(self, stats, max_min_ratio)
+            
+            # Store alpha history for insights
+            if hasattr(self, 'last_alpha_used'):
+                if not hasattr(self, 'alpha_history'):
+                    self.alpha_history = []
+                self.alpha_history.append(self.last_alpha_used)
+                if len(self.alpha_history) > 50:
+                    self.alpha_history = self.alpha_history[-50:]
             
             # Log to wandb if enabled
-            if self.config.wandb.enabled and self.wandb:
-                wandb_data = {
-                    'scores/mean': stats['mean'],
-                    'scores/std': stats['std'],
-                    'scores/cv': stats['cv'],
-                    'scores/max_min_ratio': stats['max']/stats['min'],
-                    'scores/active_count': stats['count']
-                }
+            # if self.config.wandb.enabled and self.wandb:
+            #     wandb_data = {
+            #         'scores/mean': stats['mean'],
+            #         'scores/std': stats['std'],
+            #         'scores/cv': stats['cv'],
+            #         'scores/max_min_ratio': stats['max']/stats['min'],
+            #         'scores/active_count': stats['count']
+            #     }
                 
-                # Log top 5 scores individually
-                for i, (uid, score) in enumerate(sorted_scores[:5], 1):
-                    wandb_data[f'scores/top_{i}_uid'] = uid
-                    wandb_data[f'scores/top_{i}_score'] = score
+            #     # Log top 5 scores individually
+            #     for i, (uid, score) in enumerate(sorted_scores[:5], 1):
+            #         wandb_data[f'scores/top_{i}_uid'] = uid
+            #         wandb_data[f'scores/top_{i}_score'] = score
                 
-                self.wandb.log(self.step, wandb_data)
-            
-            # Check for potential issues
-            if stats['cv'] > 0.5:
-                bt.logging.warning(f"⚠️  High score variance detected (CV: {stats['cv']:.3f})")
-
-            if max_min_ratio > 10:
-                bt.logging.warning(f"⚠️  High score divergence detected (ratio: {max_min_ratio:.2f})")
-
-            if stats['count'] < 5:
-                bt.logging.warning(f"⚠️  Low active miner count: {stats['count']}")
-            
-            # Check score health
-            self._check_score_health(stats, max_min_ratio)
+            #     self.wandb.log(self.step, wandb_data)
             
         except Exception as e:
-            bt.logging.error(f"Error in score_sync: {e}")
+            bt.logging.error(f"Error in enhanced score_sync: {e}")
             bt.logging.error(traceback.format_exc())
-
-
-    def _display_score_trends(self):
-        """Display score trends over time"""
-        if len(self.score_history) < 2:
-            return
-            
-        current = self.score_history[-1]
-        previous = self.score_history[-2]
         
-        # Calculate changes
-        mean_change = current['stats']['mean'] - previous['stats']['mean']
-        cv_change = current['stats']['cv'] - previous['stats']['cv']
-        
-        # Check for leadership changes
-        current_leader = current['top_3'][0][0] if current['top_3'] else None
-        previous_leader = previous['top_3'][0][0] if previous['top_3'] else None
-        
-        bt.logging.info(f"\033[1;35m=== SCORE TRENDS ===\033[0m")
-        bt.logging.info(f"Mean change: {mean_change:+.6f}")
-        bt.logging.info(f"CV change: {cv_change:+.4f} {'(more stable)' if cv_change < 0 else '(less stable)'}")
-        
-        if current_leader != previous_leader:
-            bt.logging.info(f"🏆 Leadership change: UID {previous_leader} → UID {current_leader}")
-        
-        # Show UIDs that entered/left top 3
-        current_top3_uids = {uid for uid, _ in current['top_3']}
-        previous_top3_uids = {uid for uid, _ in previous['top_3']}
-        
-        new_top3 = current_top3_uids - previous_top3_uids
-        dropped_top3 = previous_top3_uids - current_top3_uids
-        
-        if new_top3:
-            bt.logging.info(f"📈 Entered top 3: {list(new_top3)}")
-        if dropped_top3:
-            bt.logging.info(f"📉 Dropped from top 3: {list(dropped_top3)}")
-        
-        # Show new/lost miners
-        new_miners = set(current['active_uids']) - set(previous['active_uids'])
-        lost_miners = set(previous['active_uids']) - set(current['active_uids'])
-        
-        if new_miners:
-            bt.logging.info(f"🆕 New active miners: {list(new_miners)}")
-        if lost_miners:
-            bt.logging.info(f"❌ Lost miners: {list(lost_miners)}")
-        
-        # Calculate score stability over longer periods
-        if len(self.score_history) >= 5:
-            last_5_cvs = [snapshot['stats']['cv'] for snapshot in self.score_history[-5:]]
-            cv_trend = np.polyfit(range(5), last_5_cvs, 1)[0]  # Linear trend
-            bt.logging.info(f"CV trend (last 5): {cv_trend:+.4f} {'(stabilizing)' if cv_trend < 0 else '(destabilizing)'}")
-        
-    def _check_score_health(self, stats, max_min_ratio):
-        """Check if scores are healthy and provide recommendations"""
-        health_issues = []
-        
-        if stats['cv'] > 0.8:
-            health_issues.append("Very high variance - consider increasing moving average alpha")
-        
-        if max_min_ratio > 20:
-            health_issues.append("Extreme score divergence - consider score capping")
-        
-        if stats['count'] < 5:
-            health_issues.append("Too few active miners - check network connectivity")
-        
-        if health_issues:
-            bt.logging.warning(f"🩺 Score Health Issues:")
-            for issue in health_issues:
-                bt.logging.warning(f"   - {issue}")
-        else:
-            bt.logging.info(f"✅ Score health: Good")
 
 
 async def main():
@@ -467,9 +396,11 @@ async def main():
                 asyncio.create_task(validator.version_sync()),
                 asyncio.create_task(validator.miner_sync()),
                 asyncio.create_task(validator.action_sync()),
-                asyncio.create_task(validator.response_sync()),
-                asyncio.create_task(validator.score_sync())
+                asyncio.create_task(validator.response_sync())                
             ]                    
+            if validator.config.logging.trace:
+                tasks.append(asyncio.create_task(validator.score_sync()))
+                
             await asyncio.gather(*tasks)
             
             bt.logging.info(f"Validator {validator.uid} running... {int(time.time())}")
