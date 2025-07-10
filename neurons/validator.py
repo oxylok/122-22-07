@@ -47,7 +47,7 @@ from bitrecs.metrics.score_metrics import (
 )
 
 
-SCORE_DISPLAY_INTERVAL = 300
+SCORE_DISPLAY_INTERVAL = 180
 
 class Validator(BaseValidatorNeuron):
     """

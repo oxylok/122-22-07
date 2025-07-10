@@ -1,6 +1,5 @@
 import traceback
 import bittensor as bt
-import time
 import numpy as np
 
 def display_normalized_analysis(validator_instance):
@@ -9,6 +8,13 @@ def display_normalized_analysis(validator_instance):
         normalized_scores = validator_instance.get_normalized_scores()
         
         bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")
+        
+        # Show raw score statistics first
+        raw_active = validator_instance.scores[validator_instance.scores > 0]
+        if len(raw_active) > 0:
+            bt.logging.info(f"Raw score range: {np.min(raw_active):.8f} - {np.max(raw_active):.6f}")
+            raw_ratio = np.max(raw_active) / np.min(raw_active)
+            bt.logging.info(f"Raw score ratio: {raw_ratio:.2f}")
         
         active_normalized = {}
         for uid, norm_score in enumerate(normalized_scores):
@@ -44,6 +50,11 @@ def display_normalized_analysis(validator_instance):
         top_3_weight = sum(weight for _, weight in sorted_normalized[:3])
         if top_3_weight > 0.7:
             bt.logging.warning(f"⚠️  High weight concentration in top 3: {top_3_weight:.1%}")
+        
+        # Check for extreme ranges
+        norm_ratio = norm_stats['max'] / norm_stats['min']
+        if norm_ratio > 1000:
+            bt.logging.warning(f"⚠️  Extreme normalized range - ratio: {norm_ratio:.2f}")
         
     except Exception as e:
         bt.logging.error(f"Error in normalized analysis: {e}")
@@ -96,8 +107,16 @@ def display_transformation_impact(validator_instance):
         if len(active_scores) < 2:
             return
         
-        # Normalize first
-        normalized = active_scores / np.sum(active_scores)
+        # CRITICAL FIX: Filter out extremely small values before transformation
+        min_threshold = 1e-6
+        filtered_scores = active_scores[active_scores > min_threshold]
+        
+        if len(filtered_scores) < 2:
+            bt.logging.warning("⚠️  Too few significant scores for transformation analysis")
+            return
+        
+        # Normalize AFTER filtering
+        normalized = filtered_scores / np.sum(filtered_scores)
         
         # Apply different powers
         linear = normalized  # Power = 1.0
@@ -109,6 +128,14 @@ def display_transformation_impact(validator_instance):
         aggressive = aggressive / np.sum(aggressive)
         
         bt.logging.info(f"\033[1;36m=== TRANSFORMATION IMPACT ===\033[0m")
+        bt.logging.info(f"Scores analyzed: {len(filtered_scores)} (filtered from {len(active_scores)})")
+        bt.logging.info(f"Score range: {np.min(filtered_scores):.6f} - {np.max(filtered_scores):.6f}")
+        
+        # Safe ratio calculation
+        linear_ratio = np.max(linear) / np.min(linear)
+        moderate_ratio = np.max(moderate) / np.min(moderate)
+        aggressive_ratio = np.max(aggressive) / np.min(aggressive)
+        
         bt.logging.info(f"Linear (1.0) CV: {np.std(linear)/np.mean(linear):.3f}")
         bt.logging.info(f"Moderate (1.2) CV: {np.std(moderate)/np.mean(moderate):.3f}")
         bt.logging.info(f"Aggressive (1.5) CV: {np.std(aggressive)/np.mean(aggressive):.3f}")
@@ -117,12 +144,12 @@ def display_transformation_impact(validator_instance):
         current_power = 1.0  # Update this based on your actual setting
         bt.logging.info(f"Current power: {current_power} ({'linear' if current_power == 1.0 else 'non-linear'})")
         
-        # Show amplification effect
-        max_ratio_linear = np.max(linear) / np.min(linear)
-        max_ratio_moderate = np.max(moderate) / np.min(moderate)
-        max_ratio_aggressive = np.max(aggressive) / np.min(aggressive)
+        # Show amplification effect with safe values
+        bt.logging.info(f"Max/Min ratios - Linear: {linear_ratio:.2f}, Moderate: {moderate_ratio:.2f}, Aggressive: {aggressive_ratio:.2f}")
         
-        bt.logging.info(f"Max/Min ratios - Linear: {max_ratio_linear:.2f}, Moderate: {max_ratio_moderate:.2f}, Aggressive: {max_ratio_aggressive:.2f}")
+        # Warning for extreme ratios
+        if linear_ratio > 1000:
+            bt.logging.warning(f"⚠️  Extreme score range detected - consider score capping")
         
     except Exception as e:
         bt.logging.error(f"Error in transformation impact: {e}")
