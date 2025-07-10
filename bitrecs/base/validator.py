@@ -403,20 +403,23 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        # Default - send top score to client
-                        selected_rec = rewards.argmax()
                         good_indices = np.where(rewards > 0)[0]
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
-                            if top_k and 1==1: #Top score now pulled from top_k
+                            if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
                                 rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                 bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                         else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
+                            synapse_with_event.event.set()
+                            continue
+                        
+                        if not selected_rec:
+                            bt.logging.error("No consensus rec found skipping this request")
                             synapse_with_event.event.set()
                             continue
                     
