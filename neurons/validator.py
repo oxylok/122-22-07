@@ -45,6 +45,7 @@ from bitrecs.metrics.score_metrics import (
 
 SCORE_DISPLAY_INTERVAL = 180
 
+
 class Validator(BaseValidatorNeuron):
     """
     Your validator neuron class. You should use this class to define your validator's behavior. In particular, you should replace the forward function with your own logic.
@@ -102,6 +103,7 @@ class Validator(BaseValidatorNeuron):
     async def miner_sync(self):
         """
         Checks the miners in the metagraph for connectivity and updates the active miners list.
+        Enhanced with retry logic and pause on failure to maintain validator consensus.
         """
         bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
         bt.logging.trace(f"neuron.sample_size: {self.config.neuron.sample_size}")
@@ -113,78 +115,110 @@ class Validator(BaseValidatorNeuron):
             self.resync_metagraph()
             bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
 
-        #available_uids = get_random_miner_uids(self, k=self.config.neuron.sample_size, exclude=excluded)
-        available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
-        bt.logging.trace(f"get_random_uids: {available_uids}")
+        selected_miners = []        
         
-        chosen_uids = available_uids
-        bt.logging.trace(f"chosen_uids: {chosen_uids}")
-        if len(chosen_uids) == 0:
-            bt.logging.error("\033[1;31mNo random qualified miners found - check your connectivity \033[0m")
-            return
-        
-        chosen_uids = list(set(chosen_uids))
-        valid_uids = []
-        for uid in chosen_uids:
-            bt.logging.trace(f"Checking uid: {uid} with stake {self.metagraph.S[uid]} and trust {self.metagraph.T[uid]}")
-            if uid == 0 or uid == self.uid:
+        # Retry loop for finding sufficient miners
+        for attempt in range(CONST.MAX_MINER_ATTEMPTS):
+            bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_ATTEMPTS}: Looking for miners...")            
+            
+            # Get random miners
+            available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
+            bt.logging.trace(f"get_random_uids: {available_uids}")
+            
+            chosen_uids = available_uids
+            bt.logging.trace(f"chosen_uids: {chosen_uids}")
+            if len(chosen_uids) == 0:
+                bt.logging.error(f"\033[1;31mNo random qualified miners found in attempt {attempt + 1} - check your connectivity \033[0m")
+                if attempt < CONST.MAX_MINER_ATTEMPTS - 1:
+                    await asyncio.sleep(5)
                 continue
-            if not self.metagraph.axons[uid].is_serving:
-                continue            
-            this_stake = float(self.metagraph.S[uid])
-            stake_limit = float(self.config.neuron.vpermit_tao_limit)
-            if this_stake > stake_limit:
-                bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
+            
+            # Filter for valid miners
+            chosen_uids = list(set(chosen_uids))
+            valid_uids = []
+            for uid in chosen_uids:
+                bt.logging.trace(f"Checking uid: {uid} with stake {self.metagraph.S[uid]} and trust {self.metagraph.T[uid]}")
+                if uid == 0 or uid == self.uid:
+                    continue
+                if not self.metagraph.axons[uid].is_serving:
+                    continue            
+                this_stake = float(self.metagraph.S[uid])
+                stake_limit = float(self.config.neuron.vpermit_tao_limit)
+                if this_stake > stake_limit:
+                    bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
+                    continue
+                hk = self.metagraph.axons[uid].hotkey
+                if hk not in self.hotkeys:
+                    bt.logging.trace(f"uid: {uid} hotkey {hk} not in hotkeys, skipping")
+                    continue
+                valid_uids.append(uid)
+            
+            if len(valid_uids) == 0:
+                bt.logging.error(f"\033[31mNo valid miners found for ping test in attempt {attempt + 1} \033[0m")
+                if attempt < CONST.MAX_MINER_ATTEMPTS - 1:
+                    await asyncio.sleep(5)
                 continue
-            hk = self.metagraph.axons[uid].hotkey
-            if hk not in self.hotkeys:
-                bt.logging.trace(f"uid: {uid} hotkey {hk} not in hotkeys, skipping")
-                continue
-            valid_uids.append(uid)
-        if len(valid_uids) == 0:
-            self.active_miners = []
-            bt.logging.error("\033[31mNo valid miners found for ping test \033[0m")
-            return
-        
-        start_time = time.perf_counter()
-        batch_size = CONST.MINER_BATCH_SIZE
-        selected_miners = []
+            
+            # Ping all valid miners in batches
+            bt.logging.trace(f"Pinging {len(valid_uids)} valid miners in batches...")
+            start_time = time.perf_counter()
+            batch_size = CONST.MINER_BATCH_SIZE
+            selected_miners = []  # Reset for this attempt
 
-        for i in range(0, len(valid_uids), batch_size):
-            batch_uids = valid_uids[i:i + batch_size]
-            bt.logging.trace(f"Pinging batch {i//batch_size + 1}: {batch_uids}")
+            for i in range(0, len(valid_uids), batch_size):
+                batch_uids = valid_uids[i:i + batch_size]
+                bt.logging.trace(f"Pinging batch {i//batch_size + 1}: {batch_uids}")
+                
+                batch_tasks = []
+                for uid in batch_uids:
+                    try:
+                        port = int(self.metagraph.axons[uid].port)
+                        task = asyncio.create_task(self._ping_miner_async(uid, port))
+                        batch_tasks.append((uid, task))
+                    except Exception as e:
+                        bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
             
-            batch_tasks = []
-            for uid in batch_uids:
-                try:
-                    port = int(self.metagraph.axons[uid].port)
-                    task = asyncio.create_task(self._ping_miner_async(uid, port))
-                    batch_tasks.append((uid, task))
-                except Exception as e:
-                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
+                batch_results = await asyncio.gather(*[task for _, task in batch_tasks], return_exceptions=True)            
+                for (uid, _), result in zip(batch_tasks, batch_results):
+                    if isinstance(result, Exception):
+                        bt.logging.trace(f"\033[1;33m ping:{uid}:ERROR - {result} \033[0m")
+                    elif result:
+                        bt.logging.trace(f"\033[1;32m ping:{uid}:OK \033[0m")
+                        selected_miners.append(uid)
+                    else:
+                        bt.logging.trace(f"\033[1;33m ping:{uid}:FALSE \033[0m")
             
-            batch_results = await asyncio.gather(*[task for _, task in batch_tasks], return_exceptions=True)            
-            for (uid, _), result in zip(batch_tasks, batch_results):
-                if isinstance(result, Exception):
-                    bt.logging.trace(f"\033[1;33m ping:{uid}:ERROR - {result} \033[0m")
-                elif result:
-                    bt.logging.trace(f"\033[1;32m ping:{uid}:OK \033[0m")
-                    selected_miners.append(uid)
-                else:
-                    bt.logging.trace(f"\033[1;33m ping:{uid}:FALSE \033[0m")
+            duration = time.perf_counter() - start_time
+            bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")            
             
-            #delay between batches
-            await asyncio.sleep(0.1)
+            # Check if we have enough miners after all batches
+            if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
+                bt.logging.info(f"\033[1;32m Success! Found {len(selected_miners)} active miners (min: {CONST.MIN_ACTIVE_MINERS}) \033[0m")
+                break
+            else:
+                bt.logging.warning(f"Only found {len(selected_miners)} miners in attempt {attempt + 1}, need {CONST.MIN_ACTIVE_MINERS}. {'Retrying in 5 seconds...' if attempt < CONST.MAX_MINER_ATTEMPTS - 1 else 'Giving up.'}")
+                if attempt < CONST.MAX_MINER_ATTEMPTS - 1:
+                    await asyncio.sleep(5)        
         
-        duration = time.perf_counter() - start_time
-        bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")        
-        if len(selected_miners) == 0:
+        if len(selected_miners) < CONST.MIN_ACTIVE_MINERS:
+            bt.logging.error(f"\033[1;31mCRITICAL: Only found {len(selected_miners)} active miners after {CONST.MAX_MINER_ATTEMPTS} attempts (need {CONST.MIN_ACTIVE_MINERS}) \033[0m")
+            bt.logging.error(f"\033[1;31mValidator will pause to avoid divergence from other validators \033[0m")            
+            
+            # Clean up active miners - validator will not handle requests 
             self.active_miners = []
-            bt.logging.error("\033[31mNo active miners selected in round - check your connectivity \033[0m")
+            
+            # Sleep longer and then recursively retry
+            bt.logging.info(f"Sleeping for 30 seconds before retrying miner discovery...")
+            await asyncio.sleep(30)
+            
+            # Recursive retry - call miner_sync again
+            bt.logging.info(f"Retrying miner discovery after pause...")
+            await self.miner_sync()
             return
         
+        # Success - update active miners
         self.active_miners = list(set(selected_miners))
-        bt.logging.info(f"\033[1;32m Active miners: {self.active_miners}  \033[0m")
+        bt.logging.info(f"\033[1;32m Active miners: {len(self.active_miners)} {self.active_miners} \033[0m")
 
 
     async def _ping_miner_async(self, uid: int, port: int) -> bool:

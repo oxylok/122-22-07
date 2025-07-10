@@ -49,3 +49,6 @@ RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
 RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
 CONVERSION_SCORING_ENABLED = False
+
+MIN_ACTIVE_MINERS = 8
+MAX_MINER_ATTEMPTS = 3
