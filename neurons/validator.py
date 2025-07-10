@@ -23,9 +23,8 @@ import bittensor as bt
 import asyncio
 import numpy as np
 import traceback
-from datetime import timedelta
-
 import requests
+from datetime import timedelta
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
 from bitrecs.utils.r2 import ValidatorUploadRequest

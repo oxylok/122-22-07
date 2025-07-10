@@ -78,8 +78,8 @@ def convert_weights_and_uids_for_emit(
     weights = np.asarray(weights)
 
     # Get non-zero weights and corresponding uids
-    non_zero_weights = weights[weights > 0]
-    non_zero_weight_uids = uids[weights > 0]
+    #non_zero_weights = weights[weights > 0]
+    #non_zero_weight_uids = uids[weights > 0]
 
     # Debugging information
     # bittensor.logging.debug(f"weights: {weights}")

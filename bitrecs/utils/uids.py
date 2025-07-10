@@ -68,49 +68,49 @@ def get_random_miner_uids(self, k: int, exclude: List[int] = None) -> np.ndarray
 
     
 
-def get_random_miner_uids2(self,
-    k: int, 
-    banned_coldkeys: set = None, 
-    banned_hotkeys: set = None,
-    banned_ips: set = None) -> list[int]:
+# def get_random_miner_uids2(self,
+#     k: int, 
+#     banned_coldkeys: set = None, 
+#     banned_hotkeys: set = None,
+#     banned_ips: set = None) -> list[int]:
 
-    """Fetch random miners that meet criteria."""
+#     """Fetch random miners that meet criteria."""
     
-    cooldown_count = 0
-    avail_uids = []   
-    for uid in range(self.metagraph.n.item()):
-        if not self.metagraph.axons[uid].is_serving:
-            continue
-        # if self.metagraph.validator_permit[uid] and self.metagraph.S[uid] > 1000:
-        #     continue
-        # if self.metagraph.S[uid] == 0:
-        #     continue
+#     cooldown_count = 0
+#     avail_uids = []   
+#     for uid in range(self.metagraph.n.item()):
+#         if not self.metagraph.axons[uid].is_serving:
+#             continue
+#         # if self.metagraph.validator_permit[uid] and self.metagraph.S[uid] > 1000:
+#         #     continue
+#         # if self.metagraph.S[uid] == 0:
+#         #     continue
 
-        if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
-            cooldown_count += 1
-            continue
-        if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
-            cooldown_count += 1
-            continue
-        if banned_ips and self.metagraph.axons[uid].ip in banned_ips:
-            cooldown_count += 1
-            continue
+#         if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
+#             cooldown_count += 1
+#             continue
+#         if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
+#             cooldown_count += 1
+#             continue
+#         if banned_ips and self.metagraph.axons[uid].ip in banned_ips:
+#             cooldown_count += 1
+#             continue
     
-        avail_uids.append(uid)
+#         avail_uids.append(uid)
 
-    bt.logging.trace(f"\033[32m pre candidate_uids: {avail_uids} from k {k} \033[0m")
-    bt.logging.trace(f"\033[33m Total banned nodes: {cooldown_count} \033[0m")
+#     bt.logging.trace(f"\033[32m pre candidate_uids: {avail_uids} from k {k} \033[0m")
+#     bt.logging.trace(f"\033[33m Total banned nodes: {cooldown_count} \033[0m")
 
-    # Check if candidate_uids contain enough for querying, if not grab all avaliable uids
-    if 0 < len(avail_uids) < k:
-        bt.logging.warning(
-            f"Requested {k} uids but only {len(avail_uids)} were available. To disable this warning reduce the sample size (--neuron.sample_size)"
-        )
-        return np.array(avail_uids).astype(int).tolist()
-    elif len(avail_uids) >= k:
-        return np.array(random.sample(avail_uids, k)).astype(int).tolist()
-    else:
-        return []
+#     # Check if candidate_uids contain enough for querying, if not grab all avaliable uids
+#     if 0 < len(avail_uids) < k:
+#         bt.logging.warning(
+#             f"Requested {k} uids but only {len(avail_uids)} were available. To disable this warning reduce the sample size (--neuron.sample_size)"
+#         )
+#         return np.array(avail_uids).astype(int).tolist()
+#     elif len(avail_uids) >= k:
+#         return np.array(random.sample(avail_uids, k)).astype(int).tolist()
+#     else:
+#         return []
 
 
 

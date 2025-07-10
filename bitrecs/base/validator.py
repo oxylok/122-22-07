@@ -548,7 +548,7 @@ class BaseValidatorNeuron(BaseNeuron):
     def set_weights(self):
         """Sets the validator weights to the metagraph hotkeys based on the scores."""
         bt.logging.info(f"set_weights on chain start")       
-        bt.logging.info(f"Scores: {self.scores}")       
+        bt.logging.trace(f"Scores: {self.scores}")       
 
         if np.isnan(self.scores).any():
             bt.logging.warning("Scores contain NaN values.")
@@ -560,13 +560,13 @@ class BaseValidatorNeuron(BaseNeuron):
         # Use normalized scores for weights
         raw_weights = self.get_normalized_scores()        
         
-        bt.logging.debug(f"Array is of type: {type(raw_weights)}")
-        bt.logging.debug(f"No. of dimensions: {raw_weights.ndim}")
-        bt.logging.debug(f"Shape of array: {raw_weights.shape}")
-        bt.logging.debug(f"Size of array: {raw_weights.size}")
-        bt.logging.debug(f"Array stores elements of type: {raw_weights.dtype}")
-        bt.logging.debug(f"uids: {self.metagraph.uids.tolist()}")
-        bt.logging.debug(f"raw_weights: {raw_weights}")
+        # bt.logging.debug(f"Array is of type: {type(raw_weights)}")
+        # bt.logging.debug(f"No. of dimensions: {raw_weights.ndim}")
+        # bt.logging.debug(f"Shape of array: {raw_weights.shape}")
+        # bt.logging.debug(f"Size of array: {raw_weights.size}")
+        # bt.logging.debug(f"Array stores elements of type: {raw_weights.dtype}")
+        # bt.logging.debug(f"uids: {self.metagraph.uids.tolist()}")
+        # bt.logging.debug(f"raw_weights: {raw_weights}")
         
         # Process the raw weights to final_weights via subtensor limitations.
         try:
@@ -584,8 +584,8 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.error(f"process_weights_for_netuid function error: {e}")
             pass
             
-        bt.logging.debug(f"processed_weight_uids {processed_weight_uids}")        
-        bt.logging.debug(f"processed_weights {processed_weights}")
+        #bt.logging.debug(f"processed_weight_uids {processed_weight_uids}")        
+        #bt.logging.debug(f"processed_weights {processed_weights}")
 
         # Convert to uint16 weights and uids.
         try:
@@ -596,8 +596,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 uids=processed_weight_uids, weights=processed_weights
             )
                         
-            bt.logging.debug(f"uint_weights {uint_weights}")        
-            bt.logging.debug(f"uint_uids {uint_uids}")
+            #bt.logging.debug(f"uint_weights {uint_weights}")        
+            #bt.logging.debug(f"uint_uids {uint_uids}")
 
             # Log weights to wandb before chain update
             weights_dict = {str(uid): float(weight) for uid, weight in zip(uint_uids, uint_weights)}
