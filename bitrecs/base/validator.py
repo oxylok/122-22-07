@@ -421,7 +421,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        if not selected_rec:
+                        if selected_rec is None:
                             bt.logging.error("No consensus rec found skipping this request")
                             synapse_with_event.event.set()
                             continue
