@@ -354,8 +354,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue
                         
                         chosen_uids : list[int] = self.active_miners                     
-                        if len(chosen_uids) == 0:
-                            bt.logging.error("\033[31m API Request- No active miners, skipping - check your connectivity \033[0m")
+                        if len(chosen_uids) < CONST.MIN_ACTIVE_MINERS:
+                            bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")

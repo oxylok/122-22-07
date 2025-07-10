@@ -415,14 +415,14 @@ class Validator(BaseValidatorNeuron):
         Load cooldowns to timeout lazy miners.
 
         """
-        try:             
+        try:
             proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
             r = requests.get(f"{proxy_url}/cooldown")
             cooldowns = r.json()
             r.raise_for_status()
             self.BANNED_IPS = cooldowns["banned_ips"] or []
             self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
-            self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []            
+            self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
             bt.logging.trace(f"Cooldowns updated: {len(self.BANNED_IPS)} IPs, {len(self.BANNED_IPS)} coldkeys, {len(self.BANNED_COLDKEYS)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
