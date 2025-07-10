@@ -38,10 +38,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from bitrecs.metrics.score_metrics import (
-    display_normalized_analysis,
-    display_ema_insights,
-    display_transformation_impact,
-    display_score_trends,
     check_score_health,
     run_complete_score_analysis
 )

@@ -49,8 +49,12 @@ async def do_work(user_prompt: str,
                   debug_prompts=False) -> List[str]:
     """
     Miner work is done here.
-    This function is invoked by the API validator to generate recommendations.
-    You can use any method you prefer to generate the data.
+    This function is invoked by the validator Forward function to generate product recommendations based on the user prompt and context.    
+
+    This subnet is designed around LLM consensus.
+    You are expected to call an LLM to generate the recommendations based on the user prompt and context.
+    Please check the Bitrecs discord pinned messages for more information regarding your expection as a miner.
+    Failing to do so could result in your miner being blacklisted and removed from the network.
     The default setup will use OPEN_ROUTER.
 
     Args:
@@ -394,7 +398,8 @@ class Miner(BaseMinerNeuron):
             self.model = model
             bt.logging.info(f"Warmup SUCCESS: {self.model} - Result: {result}")
             return True
-        except Exception as e:
+        except Exception as e:            
+            bt.logging.warning(f"\033[33mMake sure you are calling an LLM, thats the whole point of this subnet...\033[0m")
             bt.logging.error(f"\033[31mFATAL ERROR calling warmup: {e!r} \033[0m")
         return False
     
