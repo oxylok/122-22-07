@@ -325,7 +325,7 @@ class Validator(BaseValidatorNeuron):
             max_min_ratio = stats['max'] / safe_min
 
             if stats['min'] < min_threshold:
-                bt.logging.warning(f"⚠️  Very small minimum score detected: {stats['min']:.8f}")
+                bt.logging.warning(f"⚠️ Very small minimum score detected: {stats['min']:.8f}")
                 bt.logging.info(f"Max/Min ratio (safe): {max_min_ratio:.2f}")
             else:
                 bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")
@@ -411,7 +411,7 @@ class Validator(BaseValidatorNeuron):
             self.BANNED_IPS = cooldowns["banned_ips"] or []
             self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
             self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
-            bt.logging.trace(f"Cooldowns updated: {len(self.BANNED_IPS)} IPs, {len(self.BANNED_IPS)} coldkeys, {len(self.BANNED_COLDKEYS)} hotkeys")
+            bt.logging.trace(f"Cooldowns updated: {len(self.BANNED_IPS)} IPs, {len(self.BANNED_COLDKEYS)} coldkeys, {len(self.BANNED_HOTKEYS)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
       

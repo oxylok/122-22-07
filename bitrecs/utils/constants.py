@@ -26,11 +26,11 @@ Constants:
     RE_PRODUCT_NAME (Pattern): Regular expression to clean product names.
     RE_REASON (Pattern): Regular expression to clean reasons.
     RE_MODEL_NAME (Pattern): Regular expression to clean model names.
-    CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.    
+    CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.
     MIN_ACTIVE_MINERS (int): Minimum number of active miners required.
-    MAX_MINER_ATTEMPTS (int): Maximum number of attempts for miner battery loading.
-    SCORE_DISPLAY_ENABLED (bool): Flag to enable score display.
-    SCORE_DISPLAY_INTERVAL (int): Length of seconds between score displays.
+    MAX_MINER_FILL_ATTEMPTS (int): Maximum number of attempts for miner battery loading.
+    SCORE_DISPLAY_ENABLED (bool): Flag to enable scoring metrics display.
+    SCORE_DISPLAY_INTERVAL (int): Length of seconds between metrics displays.
 
 """
 
@@ -46,7 +46,7 @@ MAX_CONTEXT_TOKEN_COUNT = 600_000
 MIN_CATALOG_SIZE = 6
 MAX_CATALOG_SIZE = 100_000
 MINER_BATTERY_INTERVAL = 300
-MINER_BATCH_SIZE = 6
+MINER_BATCH_SIZE = 4
 ACTION_SYNC_INTERVAL = 14400
 VERSION_CHECK_INTERVAL = 1200
 COOLDOWN_SYNC_INTERVAL = 360
@@ -56,7 +56,7 @@ RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
 RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
 CONVERSION_SCORING_ENABLED = False
-MIN_ACTIVE_MINERS = 6
+MIN_ACTIVE_MINERS = 8
 MAX_MINER_FILL_ATTEMPTS = 5
 SCORE_DISPLAY_ENABLED = False
 SCORE_DISPLAY_INTERVAL = 360
