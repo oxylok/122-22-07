@@ -1,4 +1,3 @@
-
 import socket
 import bittensor as bt
 import numpy as np
@@ -145,9 +144,8 @@ def get_random_miner_uids3(self,
         avail_uids.append(uid)
 
     suspect_uids = list(set(suspect_uids))
-    bt.logging.trace(f"\033[32m pre candidate_uids: {avail_uids} from k {k} \033[0m")
-    #bt.logging.trace(f"\033[33m Total nodes on cooldown: {len(suspect_uids)} \033[0m")
-    bt.logging.trace(f"\033[33m cooldown nodes: {suspect_uids} \033[0m")
+    bt.logging.trace(f"\033[32mpre candidate_uids: {avail_uids} from k {k} \033[0m")    
+    bt.logging.trace(f"\033[33mcooldown nodes: {suspect_uids} \033[0m")
 
     # Check if candidate_uids contain enough for querying, if not grab all avaliable uids
     if 0 < len(avail_uids) < k:
@@ -159,7 +157,6 @@ def get_random_miner_uids3(self,
         return np.array(random.sample(avail_uids, k)).astype(int).tolist(), suspect_uids
     else:
         return [], suspect_uids
-
 
 
 def best_uid(metagraph: bt.metagraph) -> int:
@@ -176,23 +173,19 @@ def ping_miner_uid(self, uid, port=8091, timeout=5) -> bool:
     ignored = ["localhost", "127.0.0.1", "0.0.0.0"]
     if ip in ignored:
         bt.logging.trace("Ignoring localhost ping.")
-        return False    
+        return False
 
     try:        
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
-        sock.settimeout(timeout)
-        sock.connect((ip, port))
-        return True
-    except ConnectionRefusedError:        
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect((ip, port))
+            return True
+    except ConnectionRefusedError:
         bt.logging.warning(f"Port {port} on for UID {uid} is not connected.")
         return False
-    except socket.timeout:        
+    except socket.timeout:
         bt.logging.warning(f"Timeout on Port {port} for UID {uid}.")
         return False
-    except Exception as e:        
+    except Exception as e:
         bt.logging.error(f"An error occurred: {e}")
         return False
-
-    finally:        
-        if 'sock' in locals():
-            sock.close()

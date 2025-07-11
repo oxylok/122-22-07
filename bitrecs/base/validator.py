@@ -414,15 +414,15 @@ class BaseValidatorNeuron(BaseNeuron):
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
                                 rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
-                                bt.logging.info(f"\033[1;32m Consensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
+                                bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                                 bt.logging.trace(winner)
                         else:
-                            bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
+                            bt.logging.error("\033[1;33mSkipped Scoring - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
                         
                         if selected_rec is None:
-                            bt.logging.error("No consensus rec found skipping this request")
+                            bt.logging.error("\033[1;31mNo consensus rec found skipping this request \033[0m")
                             synapse_with_event.event.set()
                             continue
                     
@@ -434,8 +434,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL Batch Id: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL Final Score: {rewards[selected_rec]} \033[0m")
-                        bt.logging.trace(f"\033[1;32mQueue Size: {API_QUEUE.qsize()} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL Final Score: {rewards[selected_rec]} \033[0m")                        
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -762,7 +761,7 @@ class BaseValidatorNeuron(BaseNeuron):
             hotkeys=self.hotkeys
         )
         if os.path.isfile(state_path):
-            bt.logging.info(f"\033[32m Save state confirmed \033[0m")
+            bt.logging.info(f"\033[32mSave state confirmed \033[0m")
         else:
             bt.logging.error(f"Save state failed.")
             raise Exception("Save state failed, file not found after save attempt.")

@@ -123,10 +123,14 @@ class VllmInterface:
         self.VLLM_API_KEY = os.environ.get("VLLM_API_KEY")
         if not self.VLLM_API_KEY:            
             raise ValueError("VLLM_API_KEY is not set")
+        self.VLLM_LOCAL_URL = os.environ.get("VLLM_LOCAL_URL").removesuffix("/")
+        if not self.VLLM_LOCAL_URL:
+            self.VLLM_LOCAL_URL = "http://localhost:8000/v1"          
     
     def query(self, user_prompt) -> str:
         router = vLLM(key=self.VLLM_API_KEY, model=self.model, 
-                      system_prompt=self.system_prompt, temp=self.temp)
+                      system_prompt=self.system_prompt, 
+                      temp=self.temp, base_url=self.VLLM_LOCAL_URL)
         return router.call_vllm(user_prompt)
     
     
