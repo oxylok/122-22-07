@@ -109,8 +109,8 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
 
         # Try MAX_MINER_ATTEMPTS times to find enough miners
-        for attempt in range(CONST.MAX_MINER_ATTEMPTS):
-            bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_ATTEMPTS}: Looking for miners...")
+        for attempt in range(CONST.MAX_MINER_FILL_ATTEMPTS):
+            bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_FILL_ATTEMPTS}: Looking for miners...")
             
             # Get and validate miners
             selected_miners = await self._find_valid_miners()
@@ -122,15 +122,15 @@ class Validator(BaseValidatorNeuron):
                 return
             
             # Not enough miners found
-            bt.logging.warning(f"Only found {len(selected_miners)} miners, need {CONST.MIN_ACTIVE_MINERS}")
+            bt.logging.warning(f"\033[33mOnly found {len(selected_miners)} miners, need {CONST.MIN_ACTIVE_MINERS} to proceed\033[0m")
             
             # Sleep before next attempt (except on last attempt)
-            if attempt < CONST.MAX_MINER_ATTEMPTS - 1:
+            if attempt < CONST.MAX_MINER_FILL_ATTEMPTS - 1:
                 bt.logging.info("Waiting 5 seconds before retry...")
                 await asyncio.sleep(5)
     
         # Failed to find enough miners after all attempts
-        bt.logging.error(f"\033[1;31mFailed to find {CONST.MIN_ACTIVE_MINERS} miners after {CONST.MAX_MINER_ATTEMPTS} attempts\033[0m")
+        bt.logging.error(f"\033[1;31mFailed to find {CONST.MIN_ACTIVE_MINERS} miners after {CONST.MAX_MINER_FILL_ATTEMPTS} attempts\033[0m")
         bt.logging.error(f"\033[1;31mWill retry on next periodic cycle in {CONST.MINER_BATTERY_INTERVAL} seconds\033[0m")
         self.active_miners = []
 
@@ -184,8 +184,6 @@ class Validator(BaseValidatorNeuron):
         
         for i in range(0, len(valid_uids), batch_size):
             batch_uids = valid_uids[i:i + batch_size]
-            
-            # Create ping tasks for this batch
             tasks = []
             for uid in batch_uids:
                 try:
@@ -193,12 +191,9 @@ class Validator(BaseValidatorNeuron):
                     task = asyncio.create_task(self._ping_miner_async(uid, port))
                     tasks.append((uid, task))
                 except Exception as e:
-                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")
+                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
             
-            # Wait for batch results
-            results = await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)
-            
-            # Process results
+            results = await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)                        
             for (uid, _), result in zip(tasks, results):
                 if isinstance(result, Exception):
                     bt.logging.trace(f"ping:{uid}:ERROR - {result}")
