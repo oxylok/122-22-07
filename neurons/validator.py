@@ -411,7 +411,8 @@ class Validator(BaseValidatorNeuron):
             self.BANNED_IPS = cooldowns["banned_ips"] or []
             self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
             self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
-            bt.logging.trace(f"Cooldowns updated: {len(self.BANNED_IPS)} IPs, {len(self.BANNED_COLDKEYS)} coldkeys, {len(self.BANNED_HOTKEYS)} hotkeys")
+            self.r_limit = cooldowns["r_limit"] or 1.0
+            bt.logging.trace(f"Cooldowns updated: Limit: {self.r_limit},  {len(self.BANNED_IPS)} IPs, {len(self.BANNED_COLDKEYS)} coldkeys, {len(self.BANNED_HOTKEYS)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
       

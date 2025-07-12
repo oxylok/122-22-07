@@ -157,6 +157,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.suspect_miners: List[int] = []
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
+        self.r_limit = 1.0
         
         write_node_info(
             network=self.network,
@@ -392,12 +393,12 @@ class BaseValidatorNeuron(BaseNeuron):
                                 continue
 
                         et = time.perf_counter()
-                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
-                       
-                        # Adjust the scores based on responses from miners.
+                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                       
+                        
                         rewards = get_rewards(num_recs=number_of_recs_desired,
                                               ground_truth=api_request,
-                                              responses=responses, actions=self.user_actions)
+                                              responses=responses, actions=self.user_actions,
+                                              r_limit=self.r_limit)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
@@ -434,7 +435,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL Batch Id: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL Final Score: {rewards[selected_rec]} \033[0m")                        
+                        bt.logging.info(f"\033[1;32mFINAL Score: {rewards[selected_rec]} \033[0m")                        
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")

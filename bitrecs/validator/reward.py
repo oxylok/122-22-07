@@ -35,7 +35,6 @@ MAX_BOOST = 0.20
 ALPHA_TIME_DECAY = 0.05
 CONSENSUS_BONUS_MULTIPLIER = 1.015
 SUSPECT_MINER_DECAY = 0.970
-P_LIMIT = 1.01
 
 
 ACTION_WEIGHTS = {
@@ -142,7 +141,8 @@ def reward(
     num_recs: int, 
     catalog_validator: CatalogValidator, 
     response: BitrecsRequest,
-    actions: List[UserAction]
+    actions: List[UserAction],
+    r_limit: float = 1.0
 ) -> float:
     """
     Score the Miner's response to the BitrecsRequest 
@@ -177,6 +177,9 @@ def reward(
         if len(response.models_used) != 1:
             bt.logging.error(f"Miner {response.miner_uid} has invalid models used: {response.miner_hotkey}")
             return 0.0
+        if response.axon.process_time < r_limit or response.dendrite.process_time < r_limit:
+            bt.logging.warning(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
+            return 0.0
         
         valid_items = set()
         query_lower = response.query.lower().strip()
@@ -202,11 +205,8 @@ def reward(
         if len(valid_items) != num_recs:
             bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items: {response.miner_hotkey}")
             return 0.0
-
+        
         score = BASE_REWARD
-        if response.axon.process_time < P_LIMIT or response.dendrite.process_time < P_LIMIT:
-            bt.logging.warning(f"\033[33m WARNING Miner {response.miner_uid} suspect time: {response.axon.process_time} \033[0m")
-            return 0.0
         
         if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
             # Adjust the rewards based on the actions
@@ -229,7 +229,8 @@ def get_rewards(
     num_recs: int,
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
-    actions: List[UserAction] = None
+    actions: List[UserAction] = None,
+    r_limit: float = 1.0
 ) -> np.ndarray:
     """
     Returns an array of rewards for the given query and responses.
@@ -256,33 +257,26 @@ def get_rewards(
     
     if not actions or len(actions) == 0:
         bt.logging.warning(f"\033[1;33m WARNING - no actions found in get_rewards \033[0m")
-
-    # Extract all axon times first for batch processing
+    
     axon_times = []
     for response in responses:
         axon_time = response.axon.process_time if response.axon and response.axon.process_time else None
-        axon_times.append(axon_time)     
+        axon_times.append(axon_time)
     
-    # Filter out None values for percentile calculation
-    valid_times = [t for t in axon_times if t is not None]
-
-    # Log batch timing statistics
+    valid_times = [t for t in axon_times if t is not None and t > 0]    
     if len(valid_times) > 1:
         min_time = min(valid_times)
         max_time = max(valid_times)
         avg_time = sum(valid_times) / len(valid_times)
         spread = max_time - min_time
         bt.logging.trace(f"Batch timing: min={min_time:.3f}s, max={max_time:.3f}s, avg={avg_time:.3f}s, spread={spread:.3f}s")
-        
-        # Log penalty impact
         if spread > 1.0:
-            bt.logging.info(f"\033[33m High timing spread detected: {spread:.3f}s - penalties will be more significant \033[0m")
+            bt.logging.info(f"\033[33mSpread detected: {spread:.3f}s - penalties will be more significant \033[0m")    
     
-    # Calculate base rewards and apply batch-normalized timing penalties
     rewards = []
     for i, response in enumerate(responses):
         # Get base reward without timing penalty
-        base_reward = reward(num_recs, catalog_validator, response, actions)
+        base_reward = reward(num_recs, catalog_validator, response, actions, r_limit)
         
         if base_reward <= 0.0:
             rewards.append(0.0)
@@ -308,7 +302,7 @@ def get_rewards(
             final_reward = base_reward
             rewards.append(final_reward)
 
-        bt.logging.trace(f"UID {response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
+        bt.logging.trace(f"{response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
 
     return np.array(rewards, dtype=float)
    
@@ -331,6 +325,6 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
         # Bottom 50% get increasing penalty
         penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
     
-    bt.logging.trace(f"Miner {miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f}")
+    bt.logging.trace(f"{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f}")
     return penalty
     
