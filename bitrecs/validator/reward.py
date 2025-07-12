@@ -137,8 +137,8 @@ def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
         return 0.0
 
 
-def reward(
-    num_recs: int, 
+def reward(    
+    ground_truth: BitrecsRequest,
     catalog_validator: CatalogValidator, 
     response: BitrecsRequest,
     actions: List[UserAction],
@@ -168,17 +168,23 @@ def reward(
         if not response.is_success:
             bt.logging.error(f"Miner {response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
             return 0.0
-        if len(response.results) != num_recs:
-            bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {num_recs} but got {len(response.results)}")
+        if len(response.results) != ground_truth.num_results:
+            bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {ground_truth.num_results} but got {len(response.results)}")
             return 0.0
-        if not validate_result_schema(num_recs, response.results):
+        if not validate_result_schema(ground_truth.num_results, response.results):
             bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
             return 0.0
         if len(response.models_used) != 1:
             bt.logging.error(f"Miner {response.miner_uid} has invalid models used: {response.miner_hotkey}")
             return 0.0
         if response.axon.process_time < r_limit or response.dendrite.process_time < r_limit:
-            bt.logging.warning(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
+            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
+            return 0.0
+        if response.query != ground_truth.query:
+            bt.logging.error(f"Miner {response.miner_uid} query mismatch: {response.query} != {ground_truth.query}")
+            return 0.0
+        if response.context != "[]":
+            bt.logging.error(f"Miner {response.miner_uid} context is not empty: {response.context}")
             return 0.0
         
         valid_items = set()
@@ -202,22 +208,22 @@ def reward(
                 bt.logging.error(f"JSON ERROR: {e}, miner data: {response.miner_hotkey}")
                 return 0.0
 
-        if len(valid_items) != num_recs:
+        if len(valid_items) != ground_truth.num_results:
             bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items: {response.miner_hotkey}")
             return 0.0
         
         score = BASE_REWARD
         
-        if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
-            # Adjust the rewards based on the actions
-            boost = calculate_miner_boost(response.miner_hotkey, actions)
-            if boost > 0:
-                bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
-                bt.logging.trace(f"\033[32m current: {score} \033[0m")
-                score = score + boost
-                bt.logging.trace(f"\033[32m after: {score} \033[0m")
-            else:
-                bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
+        # if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
+        #     # Adjust the rewards based on the actions
+        #     boost = calculate_miner_boost(response.miner_hotkey, actions)
+        #     if boost > 0:
+        #         bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
+        #         bt.logging.trace(f"\033[32m current: {score} \033[0m")
+        #         score = score + boost
+        #         bt.logging.trace(f"\033[32m after: {score} \033[0m")
+        #     else:
+        #         bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
         
         return score
     except Exception as e:
@@ -225,8 +231,7 @@ def reward(
         return 0.0
 
 
-def get_rewards(
-    num_recs: int,
+def get_rewards(   
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None,
@@ -236,17 +241,17 @@ def get_rewards(
     Returns an array of rewards for the given query and responses.
 
     Args:
-    - num_recs (int): The number of results expected per miner response.
-    - ground_truth (BitrecsRequest): The original ground truth which contains the catalog and query
-    - responses (List[float]): A list of responses from the miners.
-    - actions (List[UserAction]): A list of user actions across all miners. 
+    - ground_truth (:obj:`bitrecs.protocol.BitrecsRequest`): The original request object containing the query and context.
+    - responses (List[:obj:`bitrecs.protocol.BitrecsRequest`]): The list of responses from miners.
+    - actions (List[:obj:`bitrecs.commerce.user_action.UserAction`]): The list of user actions for the query.
+    - r_limit (float): Min walltime for recs.
 
     Returns:
     - np.ndarray: An array of rewards for the given query and responses.
     """
-
-    if num_recs < CONST.MIN_RECS_PER_REQUEST or num_recs > CONST.MAX_RECS_PER_REQUEST:
-        bt.logging.error(f"Invalid number of recommendations: {num_recs}")
+    
+    if ground_truth.num_results < CONST.MIN_RECS_PER_REQUEST or ground_truth.num_results > CONST.MAX_RECS_PER_REQUEST:
+        bt.logging.error(f"Invalid number of recommendations: {ground_truth.num_results}")
         return np.zeros(len(responses), dtype=float)
     
     store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
@@ -276,7 +281,7 @@ def get_rewards(
     rewards = []
     for i, response in enumerate(responses):
         # Get base reward without timing penalty
-        base_reward = reward(num_recs, catalog_validator, response, actions, r_limit)
+        base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)
         
         if base_reward <= 0.0:
             rewards.append(0.0)

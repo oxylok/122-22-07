@@ -222,16 +222,15 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
-    async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
+    async def analyze_similar_requests(self, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
         if not requests or len(requests) < 2:
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
             return
         
-        async def get_dynamic_top_n(num_requests: int) -> int:        
+        async def get_dynamic_top_n(num_requests: int) -> int:
             if num_requests < 4:
-                return 2                     
-            suggested = max(2, min(5, num_requests // 3))
-            return suggested
+                return 2
+            return max(2, min(5, num_requests // 3))
         
         # if self.config.logging.trace:
         #     print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
@@ -248,13 +247,15 @@ class BaseValidatorNeuron(BaseNeuron):
                     dendrite_time = 0
                     if "bt_header_dendrite_process_time" in headers:
                         dendrite_time = float(headers["bt_header_dendrite_process_time"])
+                    if "bt_header_axon_process_time" in headers:
+                        axon_time = float(headers["bt_header_axon_process_time"])
                     skus = rec_list_to_set(br.results)
                     if skus:
                         valid_requests.append(br)
                         valid_recs.append(skus)
                         this_model = br.models_used[0] if br.models_used else "unknown"
                         this_model = f"{this_model} - Miner: {br.miner_uid}"
-                        if dendrite_time < self.r_limit:
+                        if dendrite_time < self.r_limit or axon_time < self.r_limit:
                             this_model = f"{this_model} - X"
                         models_used.append(this_model)
                         
@@ -276,7 +277,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
             if self.config.logging.trace:
                 most_similar_indices = [valid_requests.index(req) for req in most_similar]
-                matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)            
+                matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)
                 bt.logging.trace(matrix)
 
             et = time.perf_counter()
@@ -324,12 +325,15 @@ class BaseValidatorNeuron(BaseNeuron):
     async def main_loop(self):
         """Main loop for the validator."""
         bt.logging.info(
-            f"\033[1;32m 🐸 Running validator on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}\033[0m")
+            f"\033[1;32m 🐸 Running validator on {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}\033[0m")
         if hasattr(self, "axon"):
             f"Axon: {self.axon}"
         
-        bt.logging.info(f"Validator starting at block: {self.block}")
-        bt.logging.info(f"Validator SAMPLE SIZE: {self.config.neuron.sample_size}")
+        bt.logging.info(f"Validator BLOCK: {self.block}")
+        bt.logging.info(f"Validator VPERMIT: {self.config.neuron.vpermit_tao_limit}")
+        bt.logging.info(f"Validator SAMPLE Size: {self.config.neuron.sample_size}")        
+        bt.logging.info(f"Validator MVA: {self.config.neuron.moving_average_alpha}")
+        bt.logging.info(f"Validator EPOCH Length: {self.config.neuron.epoch_length}")
         try:
             while True:
                 try:
@@ -364,8 +368,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
 
                         chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
-                        api_request = synapse_with_event.input_synapse
-                        number_of_recs_desired = api_request.num_results
+                        api_request = synapse_with_event.input_synapse                        
                         
                         st = time.perf_counter()
                         responses = await self.dendrite.forward(
@@ -396,9 +399,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                       
                         
-                        rewards = get_rewards(num_recs=number_of_recs_desired,
-                                              ground_truth=api_request,
-                                              responses=responses, actions=self.user_actions,
+                        rewards = get_rewards(ground_truth=api_request,
+                                              responses=responses, 
+                                              actions=self.user_actions,
                                               r_limit=self.r_limit)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
@@ -411,7 +414,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
-                            top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
+                            top_k = await self.analyze_similar_requests(good_responses)
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
@@ -435,8 +438,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL Batch Id: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL Score: {rewards[selected_rec]} \033[0m")                        
+                        bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]} \033[0m")                        
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -452,7 +455,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         self.update_scores(rewards, chosen_uids)
                         loop = asyncio.get_event_loop()
                         loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, elected)
-                        bt.logging.info(f"SQL logging submitted to thread pool - step {self.step}")
+                        bt.logging.trace(f"SQL logging submitted to thread pool - step {self.step}")
                         
                     else:
                         if not api_exclusive: #Regular validator loop  
