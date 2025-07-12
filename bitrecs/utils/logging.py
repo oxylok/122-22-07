@@ -155,6 +155,8 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], elect
             if not isinstance(response, BitrecsRequest):
                 bt.logging.warning(f"Skipping invalid response type: {type(response)}")
                 continue
+            response.context = ""
+            response.user = ""
             data = {
                 **response.to_headers(),
                 **response.to_dict()
