@@ -253,6 +253,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         valid_requests.append(br)
                         valid_recs.append(skus)
                         this_model = br.models_used[0] if br.models_used else "unknown"
+                        this_model = f"{this_model} - Miner: {br.miner_uid}"
                         if dendrite_time < 1:
                             this_model = f"{this_model} - X"
                         models_used.append(this_model)
