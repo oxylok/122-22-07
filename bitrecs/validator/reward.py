@@ -233,6 +233,15 @@ def get_rewards(
 ) -> np.ndarray:
     """
     Returns an array of rewards for the given query and responses.
+
+    Args:
+    - num_recs (int): The number of results expected per miner response.
+    - ground_truth (BitrecsRequest): The original ground truth which contains the catalog and query
+    - responses (List[float]): A list of responses from the miners.
+    - actions (List[UserAction]): A list of user actions across all miners. 
+
+    Returns:
+    - np.ndarray: An array of rewards for the given query and responses.
     """
 
     if num_recs < CONST.MIN_RECS_PER_REQUEST or num_recs > CONST.MAX_RECS_PER_REQUEST:
@@ -252,10 +261,11 @@ def get_rewards(
     axon_times = []
     for response in responses:
         axon_time = response.axon.process_time if response.axon and response.axon.process_time else None
-        axon_times.append(axon_time)
+        axon_times.append(axon_time)     
     
-    valid_times = [t for t in axon_times if t is not None and t > 0]
-    
+    # Filter out None values for percentile calculation
+    valid_times = [t for t in axon_times if t is not None]
+
     # Log batch timing statistics
     if len(valid_times) > 1:
         min_time = min(valid_times)
@@ -263,102 +273,64 @@ def get_rewards(
         avg_time = sum(valid_times) / len(valid_times)
         spread = max_time - min_time
         bt.logging.trace(f"Batch timing: min={min_time:.3f}s, max={max_time:.3f}s, avg={avg_time:.3f}s, spread={spread:.3f}s")
-        if spread > 2.0:
-            bt.logging.info(f"\033[33m High timing spread detected: {spread:.3f}s\033[0m")
+        
+        # Log penalty impact
+        if spread > 1.0:
+            bt.logging.info(f"\033[33m High timing spread detected: {spread:.3f}s - penalties will be more significant \033[0m")
     
-    # Calculate base rewards and apply timing penalties
+    # Calculate base rewards and apply batch-normalized timing penalties
     rewards = []
     for i, response in enumerate(responses):
+        # Get base reward without timing penalty
         base_reward = reward(num_recs, catalog_validator, response, actions)
+        
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-
         miner_id = response.miner_uid if response.miner_uid is not None else response.miner_hotkey
-        if axon_times[i] is None:
-            bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey} - ZERO SCORE")
-            rewards.append(0.0)
-            continue
-        
-        if axon_times[i] <= 0:
-            bt.logging.error(f"Invalid axon_time for miner {response.miner_uid}: {axon_times[i]} - ZERO SCORE")
-            rewards.append(0.0)
-            continue
-        
-        timing_penalty = calculate_percentile_timing_penalty(
-            axon_times[i], valid_times, miner_id
-        )
-        
-        final_reward = base_reward - timing_penalty
-        rewards.append(max(final_reward, 0.0))
-        
-        bt.logging.trace(f"UID {response.miner_uid}:{base_reward:.4f}, penalty: {timing_penalty:.4f}, final: {rewards[-1]:.4f}")
+        timing_penalty = 0.0
+        # Apply percentile-based timing penalty
+        if axon_times[i] is not None and len(valid_times) > 1:
+            timing_penalty = calculate_percentile_timing_penalty(
+                axon_times[i], valid_times, miner_id
+            )
+            final_reward = base_reward - timing_penalty
+            rewards.append(max(final_reward, 0.0))
+        elif axon_times[i] is None:            
+            bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey}")
+            timing_penalty = base_reward * 0.5
+            final_reward = base_reward - timing_penalty  #= base_reward * 0.5
+            rewards.append(max(final_reward, 0.0))
+        else:
+            # Only one valid response, no relative comparison possible
+            bt.logging.trace(f"Single response batch - no timing penalty for miner {response.miner_uid}")
+            timing_penalty = 0.0  #0 for single miner
+            final_reward = base_reward
+            rewards.append(final_reward)
+
+        bt.logging.trace(f"UID {response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
 
     return np.array(rewards, dtype=float)
    
 
-def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner_uid: str) -> float:
-    """ only good times are considered for percentile competition """
-    # Single cohort
-    if len(all_times) == 1:
+def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner_uid: str) -> float:    
+    if len(all_times) < 2:
         return ALPHA_TIME_DECAY * 0.5
     
-    # Two cohorts
-    if len(all_times) == 2:        
-        return ALPHA_TIME_DECAY * 0.5
-    
-    # Larger cohorts
-    if len(all_times) >= 3:
-        statistical_outlier_penalty = detect_statistical_outliers(axon_time, all_times, miner_uid)
-        if statistical_outlier_penalty > 0:
-            return statistical_outlier_penalty
-    
-    #Else: Normal percentile competition
     sorted_times = sorted(all_times)
     count_below = sum(1 for t in sorted_times if t < axon_time)
     count_equal = sum(1 for t in sorted_times if t == axon_time)
     rank = count_below + (count_equal + 1) / 2
     percentile = rank / len(all_times)
     
-    base_decay = ALPHA_TIME_DECAY * 0.5    
+    # More forgiving curve - only penalize the slowest miners significantly
     if percentile <= 0.5:
-        additional_penalty = ALPHA_TIME_DECAY * 0.1 * percentile
-        penalty = base_decay + additional_penalty
+        # Top 50% get minimal penalty
+        penalty = ALPHA_TIME_DECAY * 0.1 * percentile
     else:
-        additional_penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
-        penalty = base_decay + additional_penalty
+        # Bottom 50% get increasing penalty
+        penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
     
     bt.logging.trace(f"Miner {miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f}")
     return penalty
-
-
-def detect_statistical_outliers(axon_time: float, all_times: list, miner_uid: str) -> float:
-    """Detect and heavily penalize statistical outliers that pass physics checks"""
-    times_array = np.array(all_times)
-    q1 = np.percentile(times_array, 25)
-    q3 = np.percentile(times_array, 75)
-    iqr = q3 - q1
     
-    if iqr == 0:
-        return 0.0  # No outliers possible with identical times
-    
-    lower_bound = q1 - 1.5 * iqr
-    upper_bound = q3 + 1.5 * iqr
-    
-    #fo
-    if axon_time < lower_bound:
-        severity = (lower_bound - axon_time) / iqr
-        penalty = min(0.4 + 0.3 * severity, 0.75)  # 40-75% penalty
-        bt.logging.warning(f"FAST OUTLIER: Miner {miner_uid} {axon_time:.3f}s < {lower_bound:.3f}s (penalty: {penalty:.4f})")
-        return penalty
-    
-    #so
-    if axon_time > upper_bound:
-        median_time = np.median(times_array)
-        if median_time > 0:
-            slow_ratio = axon_time / median_time
-            penalty = min(0.1 + 0.05 * slow_ratio, 0.25)  # 10-25% penalty
-            bt.logging.trace(f"SLOW OUTLIER: Miner {miner_uid} {axon_time:.3f}s > {upper_bound:.3f}s (penalty: {penalty:.4f})")
-            return penalty
-    
-    return 0.0 #Onto normal percentile
