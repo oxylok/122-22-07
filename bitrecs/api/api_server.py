@@ -199,7 +199,8 @@ class ApiServer:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
             return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "st": st})
         v = self.validator.local_metadata.to_dict()
-        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "st": st})
+        miner_count = len(self.validator.active_miners)
+        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "st": st, "miner_count": miner_count})
     
     
     async def generate_product_rec_localnet(
@@ -432,9 +433,8 @@ class ApiServer:
             if len(response.results) != request.num_results:
                 bt.logging.error(f"API forward_fn response has a num_recs mismatch")
                 return JSONResponse(status_code=500,
-                                    content={"detail": "error - forward", "status_code": 500})
+                                    content={"detail": "error - forward", "status_code": 500})            
             
-            #final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
             final_recs = [json.loads(idx) for idx in response.results]
             response = {
                 "user": "",

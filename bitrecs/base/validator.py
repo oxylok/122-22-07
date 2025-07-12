@@ -157,7 +157,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.suspect_miners: List[int] = []
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
-        self.r_limit = 1.0
+        self.r_limit = 0.5
         
         write_node_info(
             network=self.network,
@@ -254,7 +254,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         valid_recs.append(skus)
                         this_model = br.models_used[0] if br.models_used else "unknown"
                         this_model = f"{this_model} - Miner: {br.miner_uid}"
-                        if dendrite_time < 1:
+                        if dendrite_time < self.r_limit:
                             this_model = f"{this_model} - X"
                         models_used.append(this_model)
                         
