@@ -181,7 +181,7 @@ def display_score_trends(validator_instance):
         
         bt.logging.info(f"\033[1;35m=== SCORE TRENDS ===\033[0m")
         bt.logging.info(f"Mean change: {mean_change:+.6f}")
-        bt.logging.info(f"CV change: {cv_change:+.4f} {'(more stable)' if cv_change < 0 else '(less stable)'}")
+        bt.logging.info(f"CV change: {cv_change:+.4f} {'\033[32m(more stable)\033[0m' if cv_change < 0 else '\033[33m(less stable)\033[0m'}")
         
         if current_leader != previous_leader:
             bt.logging.info(f"🏆 Leadership change: UID {previous_leader} → UID {current_leader}")
