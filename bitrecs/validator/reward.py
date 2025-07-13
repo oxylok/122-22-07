@@ -182,6 +182,9 @@ def reward(
             return 0.0
         if response.context != "[]":
             bt.logging.error(f"{response.miner_uid} context is not empty: {response.context}")
+            return 0.0        
+        if not response.miner_uid or not response.miner_hotkey:
+            bt.logging.error(f"{response.miner_uid} or {response.miner_hotkey} is None")
             return 0.0
         if not validate_result_schema(ground_truth.num_results, response.results):
             bt.logging.error(f"{response.miner_uid} failed schema validation: {response.miner_hotkey}")
@@ -276,7 +279,7 @@ def get_rewards(
         spread = max_time - min_time
         bt.logging.trace(f"Batch timing: min={min_time:.3f}s, max={max_time:.3f}s, avg={avg_time:.3f}s, spread={spread:.3f}s")
         if spread > 1.0:
-            bt.logging.info(f"\033[33mSpread detected: {spread:.3f}s - penalties will be more significant \033[0m")    
+            bt.logging.info(f"\033[33mSpread detected: {spread:.3f}s - penalties increased\033[0m")
     
     rewards = []
     for i, response in enumerate(responses):
@@ -286,7 +289,7 @@ def get_rewards(
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-        miner_id = response.miner_uid if response.miner_uid is not None else response.miner_hotkey
+        miner_id = response.miner_uid
         timing_penalty = 0.0
         # Apply percentile-based timing penalty
         if axon_times[i] is not None and len(valid_times) > 1:
