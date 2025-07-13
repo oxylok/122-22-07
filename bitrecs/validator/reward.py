@@ -328,13 +328,15 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
     rank = count_below + (count_equal + 1) / 2
     percentile = rank / len(all_times)
     
-    # More forgiving curve - only penalize the slowest miners significantly
-    if percentile <= 0.5:
-        # Top 50% get minimal penalty
-        penalty = ALPHA_TIME_DECAY * 0.1 * percentile
-    else:
-        # Bottom 50% get increasing penalty
-        penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
+    # # More forgiving curve - only penalize the slowest miners significantly
+    # if percentile <= 0.5:
+    #     # Top 50% get minimal penalty
+    #     penalty = ALPHA_TIME_DECAY * 0.1 * percentile
+    # else:
+    #     # Bottom 50% get increasing penalty
+    #     penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
+    
+    penalty = ALPHA_TIME_DECAY * (1.0 - percentile)
     
     #bt.logging.trace(f"\033[32m{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f} \033[0m")    
     bt.logging.trace(f"\033[32m{miner_uid} - Time: {axon_time:.3f}s, P: {percentile:.2f}, Penalty: {penalty:.4f} \033[0m")
