@@ -256,12 +256,14 @@ def get_rewards(
     
     if ground_truth.num_results < CONST.MIN_RECS_PER_REQUEST or ground_truth.num_results > CONST.MAX_RECS_PER_REQUEST:
         bt.logging.error(f"Invalid number of recommendations: {ground_truth.num_results}")
-        return np.zeros(len(responses), dtype=float)
+        raise ValueError(f"Invalid number of recommendations: {ground_truth.num_results}")
+        #return np.zeros(len(responses), dtype=float)
     
     store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
-        return np.zeros(len(responses), dtype=float)
+        raise ValueError(f"Invalid catalog size: {len(store_catalog)}")
+        #return np.zeros(len(responses), dtype=float)
     catalog_validator = CatalogValidator(store_catalog)
     
     if not actions or len(actions) == 0:
