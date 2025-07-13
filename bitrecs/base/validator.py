@@ -250,6 +250,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 try:
                     headers = br.to_headers()
                     dendrite_time = 0
+                    axon_time = 0
                     if "bt_header_dendrite_process_time" in headers:
                         dendrite_time = float(headers["bt_header_dendrite_process_time"])
                     if "bt_header_axon_process_time" in headers:
@@ -423,7 +424,12 @@ class BaseValidatorNeuron(BaseNeuron):
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
-                                rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
+                                top_k_ips = set([br.axon.ip for br in top_k])
+                                if len(top_k_ips) > 1:                                   
+                                    rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
+                                else:
+                                    bt.logging.warning(f"No consensus bonus for round, low diverity: {top_k_ips}")
+                                    
                                 bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                                 bt.logging.trace(winner)
                         else:

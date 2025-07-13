@@ -282,8 +282,8 @@ def get_rewards(
         avg_time = sum(valid_times) / len(valid_times)
         spread = max_time - min_time
         bt.logging.trace(f"Batch: min={min_time:.3f}s, max={max_time:.3f}s, avg={avg_time:.3f}s, spread={spread:.3f}s")
-        if spread > 1.0:
-            bt.logging.info(f"\033[33mSpread detected: {spread:.3f}s - penalties increased\033[0m")
+        if spread > 2.0:            
+            bt.logging.info(f"\033[33mWide Spread detected: {spread:.3f}s\033[0m")
     
     rewards = []
     for i, response in enumerate(responses):        
