@@ -159,8 +159,9 @@ def reward(
     
     try:
         score = 0.0
-        if response.is_timeout:
-            bt.logging.error(f"{response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
+        if response.is_timeout:           
+            #bt.logging.error(f"{response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
+            bt.logging.error(f"{ response.axon.hotkey[:8]} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
         if response.is_failure:            
             bt.logging.error(f"{response.miner_uid} is_failure is True, status: {response.dendrite.status_code}")
