@@ -33,6 +33,7 @@ BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
 ALPHA_TIME_DECAY = 0.05
+TIMING_PENALTY_DAMPING = 0.5 
 CONSENSUS_BONUS_MULTIPLIER = 1.015
 SUSPECT_MINER_DECAY = 0.970
 
@@ -285,16 +286,13 @@ def get_rewards(
             bt.logging.info(f"\033[33mSpread detected: {spread:.3f}s - penalties increased\033[0m")
     
     rewards = []
-    for i, response in enumerate(responses):
-        # Get base reward without timing penalty
-        base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)
-        
+    for i, response in enumerate(responses):        
+        base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)        
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
         miner_id = response.miner_uid
-        timing_penalty = 0.0
-        # Apply percentile-based timing penalty
+        timing_penalty = 0.0        
         if axon_times[i] is not None and len(valid_times) > 1:
             timing_penalty = calculate_percentile_timing_penalty(
                 axon_times[i], valid_times, miner_id
@@ -308,7 +306,7 @@ def get_rewards(
             rewards.append(max(final_reward, 0.0))
         else:
             # Only one valid response, no relative comparison possible
-            bt.logging.trace(f"Single response batch - no timing penalty for miner {response.miner_uid}")
+            bt.logging.trace(f"Single response batch - base timing penalty for miner {response.miner_uid}")
             timing_penalty = ALPHA_TIME_DECAY * 0.5
             final_reward = base_reward - timing_penalty
             rewards.append(max(final_reward, 0.0))
@@ -326,8 +324,9 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
     count_below = sum(1 for t in sorted_times if t < axon_time)
     count_equal = sum(1 for t in sorted_times if t == axon_time)
     rank = count_below + (count_equal + 1) / 2
-    percentile = rank / len(all_times)
-    penalty = ALPHA_TIME_DECAY * (1.0 - percentile)
+    percentile = rank / len(all_times)    
+    MIN_PENALTY = 0.25    
+    penalty = TIMING_PENALTY_DAMPING * ALPHA_TIME_DECAY * (MIN_PENALTY + (1.0 - MIN_PENALTY) * (1.0 - percentile))
     bt.logging.trace(f"\033[32m{miner_uid} - Time: {axon_time:.3f}s, P: {percentile:.2f}, Penalty: {penalty:.4f} \033[0m")
     return penalty
     
