@@ -242,11 +242,11 @@ class BaseValidatorNeuron(BaseNeuron):
         
         st = time.perf_counter()
         try:
-            requests = [r for r in requests if r.is_success]
+            good_requests = [r for r in requests if r.is_success]
             valid_requests = []
             valid_recs = []
             models_used = []
-            for br in requests:
+            for br in good_requests:
                 try:
                     headers = br.to_headers()
                     dendrite_time = 0
