@@ -741,7 +741,9 @@ class BaseValidatorNeuron(BaseNeuron):
         normalized = normalized / np.sum(normalized)
         
         # Apply non-linear transformation
-        nonlinear_power = 1.1
+        nonlinear_power = 1.3
+        if self.network == "mainnet":
+            nonlinear_power = 1.1
         transformed = np.power(normalized, nonlinear_power)
         
         # Final normalization
