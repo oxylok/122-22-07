@@ -272,7 +272,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 return
             
             top_n = await get_dynamic_top_n(len(valid_requests))
-            bt.logging.info(f"\033[1;32mTop {top_n} of {len(valid_requests)}/{len(requests)} (valid/total) bitrecs \033[0m")
+            bt.logging.info(f"\033[1;32mTop {top_n} of {len(requests)} successful bitrecs \033[0m")
             most_similar = select_most_similar_bitrecs(valid_requests, top_n)
             if not most_similar:
                 bt.logging.warning(f"\033[33mNo similar recs found in this round step: {self.step} \033[0m")
