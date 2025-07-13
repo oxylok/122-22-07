@@ -158,13 +158,18 @@ class BaseValidatorNeuron(BaseNeuron):
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
+        self.sample_size = self.config.neuron.sample_size
+        if self.network == "mainnet":
+            self.sample_size = 16            
+        else:
+            self.sample_size = 30
         
         write_node_info(
             network=self.network,
             uid=self.uid,
             hotkey=self.wallet.hotkey.ss58_address,
             neuron_type=self.neuron_type,
-            sample_size=self.config.neuron.sample_size,
+            sample_size=self.sample_size,
             v_limit=self.config.neuron.vpermit_tao_limit
         )
 
@@ -178,7 +183,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 wandb_config = {
                     "network": self.network,
                     "neuron_type": self.neuron_type,
-                    "sample_size": self.config.neuron.sample_size,
+                    "sample_size": self.sample_size,
                     "num_concurrent_forwards": 1,
                     "vpermit_tao_limit": self.config.neuron.vpermit_tao_limit,
                     "run_name": f"validator_{wandb.util.generate_id()}"
@@ -331,7 +336,7 @@ class BaseValidatorNeuron(BaseNeuron):
         
         bt.logging.info(f"Validator BLOCK: {self.block}")
         bt.logging.info(f"Validator VPERMIT: {self.config.neuron.vpermit_tao_limit}")
-        bt.logging.info(f"Validator SAMPLE Size: {self.config.neuron.sample_size}")        
+        bt.logging.info(f"Validator SAMPLE Size: {self.sample_size}")        
         bt.logging.info(f"Validator MVA: {self.config.neuron.moving_average_alpha}")
         bt.logging.info(f"Validator EPOCH Length: {self.config.neuron.epoch_length}")
         try:

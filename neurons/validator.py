@@ -99,7 +99,7 @@ class Validator(BaseValidatorNeuron):
         Simple retry logic with MAX_MINER_ATTEMPTS, then gives up until next cycle.
         """
         bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
-        bt.logging.trace(f"neuron.sample_size: {self.config.neuron.sample_size}")
+        bt.logging.trace(f"neuron.sample_size: {self.sample_size}")
         bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
         bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")
         
@@ -142,7 +142,7 @@ class Validator(BaseValidatorNeuron):
         """
         # Get random miners
         available_uids, suspect_uids = get_random_miner_uids3(self,
-            k=self.config.neuron.sample_size, 
+            k=self.sample_size, 
             banned_coldkeys=self.BANNED_COLDKEYS,
             banned_hotkeys=self.BANNED_HOTKEYS,
             banned_ips=self.BANNED_IPS)
