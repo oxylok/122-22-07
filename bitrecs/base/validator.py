@@ -428,8 +428,8 @@ class BaseValidatorNeuron(BaseNeuron):
                                 if len(top_k_ips) > 1:                                   
                                     rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                 else:
-                                    bt.logging.warning(f"No consensus bonus for round, low diverity: {top_k_ips}")
-                                    
+                                    bt.logging.warning(f"\033[33mNo consensus bonus for round, low diverity: {top_k_ips} \033[0m")
+
                                 bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                                 bt.logging.trace(winner)
                         else:
