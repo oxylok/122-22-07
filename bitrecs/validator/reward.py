@@ -330,6 +330,6 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
         # Bottom 50% get increasing penalty
         penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
     
-    bt.logging.trace(f"\033[31m{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f} \033[0m")
+    bt.logging.trace(f"\033[32m{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f} \033[0m")
     return penalty
     
