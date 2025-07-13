@@ -169,11 +169,14 @@ def reward(
         if not response.is_success:
             bt.logging.error(f"{response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
             return 0.0
+        if not response.miner_uid or not response.miner_hotkey:
+            bt.logging.error(f"{response.axon.hotkey} is not reporting correctly (missing ids)")
+            return 0.0        
         if len(response.results) != ground_truth.num_results:
             bt.logging.error(f"{response.miner_uid} num_recs mismatch, expected {ground_truth.num_results} but got {len(response.results)}")
             return 0.0       
         if len(response.models_used) != 1:
-            bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey}")
+            bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey[:8]}")
             return 0.0
         if response.axon.process_time < r_limit or response.dendrite.process_time < r_limit:
             bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
@@ -183,12 +186,9 @@ def reward(
             return 0.0
         if response.context != "[]":
             bt.logging.error(f"{response.miner_uid} context is not empty: {response.context}")
-            return 0.0        
-        if not response.miner_uid or not response.miner_hotkey:
-            bt.logging.error(f"{response.miner_uid} or {response.miner_hotkey} is None")
             return 0.0
         if not validate_result_schema(ground_truth.num_results, response.results):
-            bt.logging.error(f"{response.miner_uid} failed schema validation: {response.miner_hotkey}")
+            bt.logging.error(f"{response.miner_uid} failed schema validation: {response.miner_hotkey[:8]}")
             return 0.0
         
         valid_items = set()
@@ -198,13 +198,13 @@ def reward(
                 product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
-                    bt.logging.warning(f"{response.miner_uid} has query in results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has query in results: {response.miner_hotkey[:8]}")
                     return 0.0
                 if sku in valid_items:
-                    bt.logging.warning(f"{response.miner_uid} has duplicate results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has duplicate results: {response.miner_hotkey[:8]}")
                     return 0.0
                 if not catalog_validator.validate_sku(sku):
-                    bt.logging.warning(f"{response.miner_uid} has invalid results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has invalid results: {response.miner_hotkey[:8]}")
                     return 0.00
                 
                 valid_items.add(sku)
@@ -213,7 +213,7 @@ def reward(
                 return 0.0
 
         if len(valid_items) != ground_truth.num_results:
-            bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items: {response.miner_hotkey}")
+            bt.logging.warning(f"{response.miner_uid} invalid number of valid_items: {response.miner_hotkey[:8]}")
             return 0.0
         
         score = BASE_REWARD
