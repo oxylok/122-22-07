@@ -160,31 +160,31 @@ def reward(
     try:
         score = 0.0
         if response.is_timeout:
-            bt.logging.error(f"Miner {response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
+            bt.logging.error(f"{response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
         if response.is_failure:            
-            bt.logging.error(f"Miner {response.miner_uid} is_failure is True, status: {response.dendrite.status_code}")
+            bt.logging.error(f"{response.miner_uid} is_failure is True, status: {response.dendrite.status_code}")
             return 0.0
         if not response.is_success:
-            bt.logging.error(f"Miner {response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
+            bt.logging.error(f"{response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
             return 0.0
         if len(response.results) != ground_truth.num_results:
-            bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {ground_truth.num_results} but got {len(response.results)}")
-            return 0.0
-        if not validate_result_schema(ground_truth.num_results, response.results):
-            bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
-            return 0.0
+            bt.logging.error(f"{response.miner_uid} num_recs mismatch, expected {ground_truth.num_results} but got {len(response.results)}")
+            return 0.0       
         if len(response.models_used) != 1:
-            bt.logging.error(f"Miner {response.miner_uid} has invalid models used: {response.miner_hotkey}")
+            bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey}")
             return 0.0
         if response.axon.process_time < r_limit or response.dendrite.process_time < r_limit:
             bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
             return 0.0
         if response.query != ground_truth.query:
-            bt.logging.error(f"Miner {response.miner_uid} query mismatch: {response.query} != {ground_truth.query}")
+            bt.logging.error(f"{response.miner_uid} query mismatch: {response.query} != {ground_truth.query}")
             return 0.0
         if response.context != "[]":
-            bt.logging.error(f"Miner {response.miner_uid} context is not empty: {response.context}")
+            bt.logging.error(f"{response.miner_uid} context is not empty: {response.context}")
+            return 0.0
+        if not validate_result_schema(ground_truth.num_results, response.results):
+            bt.logging.error(f"{response.miner_uid} failed schema validation: {response.miner_hotkey}")
             return 0.0
         
         valid_items = set()
@@ -194,13 +194,13 @@ def reward(
                 product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
-                    bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has query in results: {response.miner_hotkey}")
                     return 0.0
                 if sku in valid_items:
-                    bt.logging.warning(f"Miner {response.miner_uid} has duplicate results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has duplicate results: {response.miner_hotkey}")
                     return 0.0
                 if not catalog_validator.validate_sku(sku):
-                    bt.logging.warning(f"Miner {response.miner_uid} has invalid results: {response.miner_hotkey}")
+                    bt.logging.warning(f"{response.miner_uid} has invalid results: {response.miner_hotkey}")
                     return 0.00
                 
                 valid_items.add(sku)
@@ -330,6 +330,6 @@ def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner
         # Bottom 50% get increasing penalty
         penalty = ALPHA_TIME_DECAY * (0.05 + 0.95 * (percentile - 0.5) * 2)
     
-    bt.logging.trace(f"{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f}")
+    bt.logging.trace(f"\033[31m{miner_uid} timing: {axon_time:.3f}s, percentile: {percentile:.2f}, penalty: {penalty:.4f} \033[0m")
     return penalty
     
