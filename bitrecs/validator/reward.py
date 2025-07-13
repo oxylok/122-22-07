@@ -304,14 +304,14 @@ def get_rewards(
         elif axon_times[i] is None:            
             bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey}")
             timing_penalty = base_reward * 0.5
-            final_reward = base_reward - timing_penalty  #= base_reward * 0.5
+            final_reward = base_reward - timing_penalty
             rewards.append(max(final_reward, 0.0))
         else:
             # Only one valid response, no relative comparison possible
             bt.logging.trace(f"Single response batch - no timing penalty for miner {response.miner_uid}")
-            timing_penalty = 0.0  #0 for single miner
-            final_reward = base_reward
-            rewards.append(final_reward)
+            timing_penalty = ALPHA_TIME_DECAY * 0.5
+            final_reward = base_reward - timing_penalty
+            rewards.append(max(final_reward, 0.0))
 
         bt.logging.trace(f"{response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
 
