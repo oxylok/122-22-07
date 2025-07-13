@@ -18,6 +18,7 @@ Constants:
     MIN_CATALOG_SIZE (int): Minimum size of a request catalog.
     MAX_CATALOG_SIZE (int): Maximum size of a request catalog.
     MINER_BATTERY_INTERVAL (int): Length of seconds between miner checks.
+    MINER_BATCH_SIZE (int): Number of miners to check in a single ping batch.
     ACTION_SYNC_INTERVAL (int): Length of seconds between action syncs.
     VERSION_CHECK_INTERVAL (int): Length of seconds between version checks.
     COOLDOWN_SYNC_INTERVAL (int): Length of seconds between cooldown syncs.
