@@ -34,7 +34,8 @@ def setup_events_logger(full_path, events_retention_size, log_level=logging.INFO
     Adds a robust rotating file handler for the 'event' logger at the given log_level.
     Does not touch existing handlers (console/UI).
     """
-    logger = logging.getLogger("event")
+    #logger = logging.getLogger("event")
+    logger = logging.getLogger()  # root logger
     # Always log at least INFO to file, even if console is TRACE
     file_log_level = min(log_level, logging.INFO) if log_level < logging.INFO else logging.INFO
 
