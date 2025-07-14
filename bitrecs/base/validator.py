@@ -235,7 +235,8 @@ class BaseValidatorNeuron(BaseNeuron):
         async def get_dynamic_top_n(num_requests: int) -> int:
             if num_requests < 4:
                 return 2
-            return max(2, min(5, num_requests // 3))
+            #return max(2, min(5, num_requests // 3))
+            return max(3, min(8, num_requests // 3))
         
         # if self.config.logging.trace:
         #     print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
