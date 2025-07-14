@@ -28,15 +28,19 @@ class SafeFormatter(logging.Formatter):
         except Exception as e:
             return f"Logging error: {e} | record: {getattr(record, '__dict__', repr(record))}"
 
+class SafeArgsFilter(logging.Filter):
+    def filter(self, record):
+        if record.args:
+            record.args = tuple(str(a) for a in record.args)
+        return True
+
 
 def setup_events_logger(full_path, events_retention_size, log_level=logging.INFO):
     """
     Adds a robust rotating file handler for the 'event' logger at the given log_level.
     Does not touch existing handlers (console/UI).
     """
-    #logger = logging.getLogger("event")
-    logger = logging.getLogger()  # root logger
-    # Always log at least INFO to file, even if console is TRACE
+    logger = logging.getLogger()  # or "event" if you want only event logs
     file_log_level = min(log_level, logging.INFO) if log_level < logging.INFO else logging.INFO
 
     formatter = SafeFormatter(
@@ -51,6 +55,7 @@ def setup_events_logger(full_path, events_retention_size, log_level=logging.INFO
     )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(file_log_level)
+    file_handler.addFilter(SafeArgsFilter())
 
     # Only add if not already present (avoid duplicate file logs)
     if not any(
