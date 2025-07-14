@@ -79,7 +79,8 @@ def display_ema_insights(validator_instance):
         
         # Count usage patterns
         default_alpha = float(validator_instance.config.neuron.moving_average_alpha)
-        low_alpha_threshold = default_alpha * 0.6  # Assuming low_alpha is ~60% of default
+        #low_alpha_threshold = default_alpha * 0.6  # Assuming low_alpha is ~60% of default
+        low_alpha_threshold = default_alpha / 2
         
         low_alpha_usage = sum(1 for a in recent_alphas if a < low_alpha_threshold) / len(recent_alphas)
         high_alpha_usage = sum(1 for a in recent_alphas if a > default_alpha) / len(recent_alphas)
