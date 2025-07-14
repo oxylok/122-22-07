@@ -16,19 +16,29 @@ DEFAULT_LOG_BACKUP_COUNT = 10
 TIMESTAMP_FILE = 'timestamp.txt'
 NODE_INFO_FILE = 'node_info.json'
 
-def setup_events_logger(full_path, events_retention_size):
-    logging.addLevelName(EVENTS_LEVEL_NUM, "EVENT")
+class SafeFormatter(logging.Formatter):
+    def format(self, record):
+        try:
+            # Stringify all args to avoid serialization issues
+            if record.args:
+                record.args = tuple(str(a) for a in record.args)
+            if not isinstance(record.msg, str):
+                record.msg = str(record.msg)
+            return super().format(record)
+        except Exception as e:
+            return f"Logging error: {e} | record: {getattr(record, '__dict__', repr(record))}"
 
+
+def setup_events_logger(full_path, events_retention_size, log_level=logging.INFO):
+    """
+    Adds a robust rotating file handler for the 'event' logger at the given log_level.
+    Does not touch existing handlers (console/UI).
+    """
     logger = logging.getLogger("event")
-    logger.setLevel(EVENTS_LEVEL_NUM)
+    # Always log at least INFO to file, even if console is TRACE
+    file_log_level = min(log_level, logging.INFO) if log_level < logging.INFO else logging.INFO
 
-    def event(self, message, *args, **kws):
-        if self.isEnabledFor(EVENTS_LEVEL_NUM):
-            self._log(EVENTS_LEVEL_NUM, message, args, **kws)
-
-    logging.Logger.event = event
-
-    formatter = logging.Formatter(
+    formatter = SafeFormatter(
         "%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
@@ -39,8 +49,14 @@ def setup_events_logger(full_path, events_retention_size):
         backupCount=DEFAULT_LOG_BACKUP_COUNT,
     )
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(EVENTS_LEVEL_NUM)
-    logger.addHandler(file_handler)
+    file_handler.setLevel(file_log_level)
+
+    # Only add if not already present (avoid duplicate file logs)
+    if not any(
+        isinstance(h, RotatingFileHandler) and getattr(h, 'baseFilename', None) == file_handler.baseFilename
+        for h in logger.handlers
+    ):
+        logger.addHandler(file_handler)
 
     return logger
 
