@@ -705,11 +705,16 @@ class BaseValidatorNeuron(BaseNeuron):
             return
 
         if rewards.size != uids_array.size:
-            raise ValueError(f"Shape mismatch: rewards {rewards.shape} vs uids {uids_array.shape}")
+            raise ValueError(f"Shape mismatch: rewards {rewards.shape} vs uids {uids_array.shape}")     
 
-        # Scatter rewards
-        scattered_rewards = np.zeros_like(self.scores, dtype=np.float32)
-        scattered_rewards[uids_array] = rewards
+        #Batch Norm
+        batch_mean = np.mean(rewards)
+        batch_std = np.std(rewards)
+        if batch_std > 1e-8:
+            norm_rewards = (rewards - batch_mean) / batch_std
+            norm_rewards = (norm_rewards - norm_rewards.min()) / (norm_rewards.max() - norm_rewards.min() + 1e-8)
+        else:
+            norm_rewards = np.zeros_like(rewards)
         
         # Adaptive alpha for zero rewards
         default_alpha = self.config.neuron.moving_average_alpha
@@ -722,7 +727,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 self.scores[uid] = (1 - low_alpha) * self.scores[uid]
             else:
                 # Non-zero reward - use normal EMA
-                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
+                self.scores[uid] = default_alpha * norm_rewards[i] + (1 - default_alpha) * self.scores[uid]    
 
         # Decay scores for suspect_miners (not in uids_array)
         for suspect_uid in self.suspect_miners:
