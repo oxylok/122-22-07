@@ -10,72 +10,40 @@ from logging.handlers import RotatingFileHandler
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.constants import SCHEMA_UPDATE_CUTOFF
 
+EVENTS_LEVEL_NUM = 38
+DEFAULT_LOG_BACKUP_COUNT = 10
+
 TIMESTAMP_FILE = 'timestamp.txt'
 NODE_INFO_FILE = 'node_info.json'
 
+def setup_events_logger(full_path, events_retention_size):
+    logging.addLevelName(EVENTS_LEVEL_NUM, "EVENT")
 
-class SafeFormatter(logging.Formatter):
-    def format(self, record):
-        # Safely stringify all arguments and the message
-        try:
-            if record.args:
-                # Convert all args to string to avoid pickling errors
-                record.args = tuple(str(arg) for arg in record.args)
-            # If the message itself is an object, stringify it
-            if not isinstance(record.msg, str):
-                record.msg = str(record.msg)
-            return super().format(record)
-        except Exception as e:
-            # If anything fails, log the error and the record's __dict__
-            return f"Logging error: {e} | record: {getattr(record, '__dict__', repr(record))}"
+    logger = logging.getLogger("event")
+    logger.setLevel(EVENTS_LEVEL_NUM)
 
+    def event(self, message, *args, **kws):
+        if self.isEnabledFor(EVENTS_LEVEL_NUM):
+            self._log(EVENTS_LEVEL_NUM, message, args, **kws)
 
-def setup_events_logger(full_path, max_log_size_mb=100, backup_count=10):
-    """
-    Sets up a rotating file logger for all log levels (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL, EVENT)
-    to bitrecs.log, rotating every `max_log_size_mb` MB, keeping `backup_count` files.
-    This logger is robust to unpicklable objects and will not crash on logging errors.
-    """
-    log_file = os.path.join(full_path, "bitrecs.log")
-    max_bytes = max_log_size_mb * 1024 * 1024
+    logging.Logger.event = event
 
-    formatter = SafeFormatter(
+    formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
+        os.path.join(full_path, "events.log"),
+        maxBytes=events_retention_size,
+        backupCount=DEFAULT_LOG_BACKUP_COUNT,
     )
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.NOTSET)  # Log everything
-
-    logger = logging.getLogger()  # Root logger
-    logger.setLevel(logging.NOTSET)  # Log everything
+    file_handler.setLevel(EVENTS_LEVEL_NUM)
     logger.addHandler(file_handler)
 
-    # Monkey-patch logger methods to always stringify objects
-    def safe_log_method(log_method):
-        def wrapper(self, msg, *args, **kwargs):
-            try:
-                # Stringify message and all args
-                msg = str(msg)
-                args = tuple(str(a) for a in args)
-            except Exception:
-                msg = "Unserializable log message"
-                args = ()
-            return log_method(self, msg, *args, **kwargs)
-        return wrapper
-
-    for level in ['debug', 'info', 'warning', 'error', 'critical', 'exception', 'log']:
-        setattr(logging.Logger, level, safe_log_method(getattr(logging.Logger, level)))
-
-    # Prevent logging from raising exceptions globally
-    logging.raiseExceptions = False
-
     return logger
+
 
 
 def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit) -> None:
