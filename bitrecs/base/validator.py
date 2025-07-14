@@ -279,13 +279,12 @@ class BaseValidatorNeuron(BaseNeuron):
             if not most_similar:
                 bt.logging.warning(f"\033[33mNo similar recs found in this round step: {self.step} \033[0m")
                 return
-            for sim in most_similar:
-                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
-
             if self.config.logging.trace:
                 most_similar_indices = [valid_requests.index(req) for req in most_similar]
                 matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)
                 bt.logging.trace(matrix)
+            for sim in most_similar:
+                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
 
             et = time.perf_counter()
             diff = et - st
@@ -418,7 +417,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
-                        good_indices = good_indices[np.argsort(rewards[good_indices])[::-1]]
+                        #good_indices = good_indices[np.argsort(rewards[good_indices])[::-1]]
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
