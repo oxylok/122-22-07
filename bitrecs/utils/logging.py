@@ -10,23 +10,18 @@ from logging.handlers import RotatingFileHandler
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.constants import SCHEMA_UPDATE_CUTOFF
 
-EVENTS_LEVEL_NUM = 38
-DEFAULT_LOG_BACKUP_COUNT = 10
-#SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 21, tzinfo=timezone.utc)
 TIMESTAMP_FILE = 'timestamp.txt'
 NODE_INFO_FILE = 'node_info.json'
 
-def setup_events_logger(full_path, events_retention_size):
-    logging.addLevelName(EVENTS_LEVEL_NUM, "EVENT")
 
-    logger = logging.getLogger("event")
-    logger.setLevel(EVENTS_LEVEL_NUM)
+def setup_events_logger(full_path, max_log_size_mb=100, backup_count=10):
+    """
+    Sets up a rotating file logger for all log levels (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL, EVENT)
+    to bitrecs.log, rotating every `max_log_size_mb` MB, keeping `backup_count` files.
+    """    
 
-    def event(self, message, *args, **kws):
-        if self.isEnabledFor(EVENTS_LEVEL_NUM):
-            self._log(EVENTS_LEVEL_NUM, message, args, **kws)
-
-    logging.Logger.event = event
+    log_file = os.path.join(full_path, "bitrecs.log")
+    max_bytes = max_log_size_mb * 1024 * 1024
 
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",
@@ -34,16 +29,18 @@ def setup_events_logger(full_path, events_retention_size):
     )
 
     file_handler = RotatingFileHandler(
-        os.path.join(full_path, "events.log"),
-        maxBytes=events_retention_size,
-        backupCount=DEFAULT_LOG_BACKUP_COUNT,
+        log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
     )
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(EVENTS_LEVEL_NUM)
+    file_handler.setLevel(logging.NOTSET)  # Log everything
+
+    logger = logging.getLogger()  # Root logger
+    logger.setLevel(logging.NOTSET)  # Log everything
     logger.addHandler(file_handler)
 
     return logger
-
 
 
 def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit) -> None:
