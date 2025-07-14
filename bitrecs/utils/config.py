@@ -16,7 +16,6 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import logging
 import os
 import subprocess
 import argparse
@@ -62,11 +61,8 @@ def check_config(cls, config: "bt.Config"):
 
     if not config.neuron.dont_save_events:
         # Add custom event logger for the events.
-        log_level = logging.TRACE if getattr(config.logging, "trace", False) else logging.INFO
         events_logger = setup_events_logger(
-            config.neuron.full_path, 
-            config.neuron.events_retention_size,
-            log_level=log_level
+            config.neuron.full_path, config.neuron.events_retention_size
         )
         bt.logging.register_primary_logger(events_logger.name)
 
