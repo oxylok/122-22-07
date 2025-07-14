@@ -424,13 +424,15 @@ class BaseValidatorNeuron(BaseNeuron):
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
-                                top_k_ips = set([br.axon.ip for br in top_k])
-                                if len(top_k_ips) > 1:                                   
+                                MIN_UNIQUE_ENTITIES = 2
+                                FRACTION_UNIQUE_ENTITIES = 0.5
+                                entities = set([br.axon.ip for br in top_k])
+                                entity_size = len(entities)
+                                if entity_size >= MIN_UNIQUE_ENTITIES and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k):
                                     rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
+                                    bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
                                 else:
-                                    bt.logging.warning(f"\033[33mNo consensus bonus for round, low diverity: {top_k_ips} \033[0m")
-
-                                bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
+                                    bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size} \033[0m")
                                 bt.logging.trace(winner)
                         else:
                             bt.logging.error("\033[1;33mSkipped Scoring - no valid candidates in responses \033[0m")
