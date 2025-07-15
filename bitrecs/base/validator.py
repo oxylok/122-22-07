@@ -417,6 +417,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
+                        consensus_bonus_applied = False
                         #good_indices = good_indices[np.argsort(rewards[good_indices])[::-1]]
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
@@ -432,6 +433,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 if entity_size >= MIN_UNIQUE_ENTITIES and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k):
                                     rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                     bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
+                                    consensus_bonus_applied = True
                                 else:
                                     bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size} \033[0m")
                                 bt.logging.trace(winner)
@@ -453,7 +455,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
                         bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]} \033[0m")                        
+                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]} \033[0m")
+                        if consensus_bonus_applied:
+                            bt.logging.info(f"\033[1;BONUS applied: {CONSENSUS_BONUS_MULTIPLIER}x \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
