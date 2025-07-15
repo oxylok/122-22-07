@@ -23,6 +23,8 @@ import asyncio
 import numpy as np
 import traceback
 import requests
+from random import SystemRandom
+safe_random = SystemRandom()
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import timedelta
@@ -118,6 +120,7 @@ class Validator(BaseValidatorNeuron):
             # Check if we found enough
             if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
                 self.active_miners = list(set(selected_miners))
+                safe_random.shuffle(self.active_miners)
                 bt.logging.info(f"\033[1;32m Success! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
                 return
             
