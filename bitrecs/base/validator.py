@@ -288,7 +288,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
             et = time.perf_counter()
             diff = et - st
-            bt.logging.info(f"Similarity analysis duration: \033[33m{diff:.2f}\033[0m seconds")
+            bt.logging.info(f"Similarity analysis: \033[33m{diff:.2f}\033[0m seconds")
             return most_similar
         
         except Exception as e:            
@@ -451,13 +451,13 @@ class BaseValidatorNeuron(BaseNeuron):
                         elected.context = ""
                         elected.user = ""
                         
-                        bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL RESULT: {elected} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key} \033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]} \033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL RESULT: {elected}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]}\033[0m")
                         if consensus_bonus_applied:
-                            bt.logging.info(f"\033[1;BONUS applied: {CONSENSUS_BONUS_MULTIPLIER}x \033[0m")
+                            bt.logging.info(f"\033[1;32mBONUS: {CONSENSUS_BONUS_MULTIPLIER}\033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
