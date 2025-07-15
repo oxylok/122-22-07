@@ -413,8 +413,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
-                        consensus_bonus_applied = False
-                        #good_indices = good_indices[np.argsort(rewards[good_indices])[::-1]]
+                        consensus_bonus_applied = False                        
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")

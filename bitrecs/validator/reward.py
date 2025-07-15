@@ -302,6 +302,11 @@ def get_rewards(
         min_decay=0.9,   # 10% penalty for easiest
         max_decay=1.0    # no penalty for hardest
     )
+    
+    #bt.logging.trace(f"Query: {ground_truth.query}, num_recs: {ground_truth.num_results}, context {len(ground_truth.context)}, participants: {len(responses)}")
+    df_code = color_code_difficulty(difficulty)
+    bt.logging.trace(f"Request difficulty: {df_code} (decay factor)")
+
     rewards = []
     for i, response in enumerate(responses):        
         base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)        
@@ -352,3 +357,19 @@ def measure_request_difficulty(
     decay = min_decay + (max_decay - min_decay) * (raw_difficulty - 1.0) / (max_difficulty - 1.0)
     decay = max(min_decay, min(decay, max_decay))
     return float(decay)
+
+
+def color_code_difficulty(difficulty: float) -> str:
+    """
+    Color-codes the decay factor:
+    - Green for easiest (decay near 1.0, no penalty)
+    - Yellow for medium
+    - Red for hardest (decay near 0.9, most penalty)
+    """
+    if difficulty >= 0.98:
+        color = "\033[1;32m"  # Green (easy)
+    elif difficulty >= 0.94:
+        color = "\033[1;33m"  # Yellow (medium)
+    else:
+        color = "\033[1;31m"  # Red (hard)
+    return f"{color}{difficulty:.3f}\033[0m"
