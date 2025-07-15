@@ -248,14 +248,9 @@ class BaseValidatorNeuron(BaseNeuron):
             valid_recs = []
             models_used = []
             for br in good_requests:
-                try:
-                    headers = br.to_headers()
-                    dendrite_time = 0
-                    axon_time = 0
-                    if "bt_header_dendrite_process_time" in headers:
-                        dendrite_time = float(headers["bt_header_dendrite_process_time"])
-                    if "bt_header_axon_process_time" in headers:
-                        axon_time = float(headers["bt_header_axon_process_time"])
+                try:                                    
+                    dendrite_time = br.dendrite.process_time                    
+                    axon_time = br.axon.process_time
                     skus = rec_list_to_set(br.results)
                     if skus:
                         valid_requests.append(br)
@@ -408,7 +403,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         rewards = get_rewards(ground_truth=api_request,
                                               responses=responses, 
                                               actions=self.user_actions,
-                                              r_limit=self.r_limit)
+                                              r_limit=self.r_limit,
+                                              batch_size=self.sample_size)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")

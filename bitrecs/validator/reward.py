@@ -33,7 +33,7 @@ BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
 ALPHA_TIME_DECAY = 0.05
-TIMING_PENALTY_DAMPING = 0.15
+
 CONSENSUS_BONUS_MULTIPLIER = 1.015
 SUSPECT_MINER_DECAY = 0.970
 
@@ -240,7 +240,8 @@ def get_rewards(
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None,
-    r_limit: float = 1.0
+    r_limit: float = 1.0,
+    batch_size: int = 16
 ) -> np.ndarray:
     """
     Returns an array of rewards for the given query and responses.
@@ -250,6 +251,7 @@ def get_rewards(
     - responses (List[:obj:`bitrecs.protocol.BitrecsRequest`]): The list of responses from miners.
     - actions (List[:obj:`bitrecs.commerce.user_action.UserAction`]): The list of user actions for the query.
     - r_limit (float): Min walltime for recs.
+    - batch_size (int): Neuron sample size of batch.
 
     Returns:
     - np.ndarray: An array of rewards for the given query and responses.
@@ -285,48 +287,68 @@ def get_rewards(
         if spread > 2.0:            
             bt.logging.info(f"\033[33mWide Spread detected: {spread:.3f}s\033[0m")
     
+    difficulty = measure_request_difficulty(
+        sku=ground_truth.query,
+        context=ground_truth.context,
+        num_recs=ground_truth.num_results,
+        num_participants=len(responses), #Todo reduce to valid only?
+        min_context_len=100,
+        max_context_len=CONST.MAX_CONTEXT_TEXT_LENGTH,
+        min_recs=CONST.MIN_RECS_PER_REQUEST,
+        max_recs=CONST.MAX_RECS_PER_REQUEST,
+        min_participants=1,
+        max_participants=batch_size,
+        base=1.0,
+        min_decay=0.9,   # 10% penalty for easiest
+        max_decay=1.0    # no penalty for hardest
+    )
     rewards = []
     for i, response in enumerate(responses):        
         base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)        
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-        miner_id = response.miner_uid
-        timing_penalty = 0.0        
-        if axon_times[i] is not None and len(valid_times) > 1:
-            timing_penalty = calculate_percentile_timing_penalty(
-                axon_times[i], valid_times, miner_id
-            )
-            final_reward = base_reward - timing_penalty
-            rewards.append(max(final_reward, 0.0))
-        elif axon_times[i] is None:            
-            bt.logging.error(f"No axon_time found for miner {response.miner_uid} - hotkey {response.miner_hotkey}")
-            timing_penalty = base_reward * 0.5
-            final_reward = base_reward - timing_penalty
-            rewards.append(max(final_reward, 0.0))
-        else:
-            # Only one valid response, no relative comparison possible
-            bt.logging.trace(f"Single response batch - base timing penalty for miner {response.miner_uid}")
-            timing_penalty = ALPHA_TIME_DECAY * 0.5
-            final_reward = base_reward - timing_penalty
-            rewards.append(max(final_reward, 0.0))
+        final_score = base_reward * difficulty
+        rewards.append(final_score)
 
-        bt.logging.trace(f"{response.miner_uid} axon decay: {timing_penalty:.4f}, final_reward: {rewards[-1]:.4f}")
+    return np.array(rewards, dtype=float) 
 
-    return np.array(rewards, dtype=float)
-   
 
-def calculate_percentile_timing_penalty(axon_time: float, all_times: list, miner_uid: str) -> float:    
-    if len(all_times) < 2:
-        return ALPHA_TIME_DECAY * 0.5
-    
-    sorted_times = sorted(all_times)
-    count_below = sum(1 for t in sorted_times if t < axon_time)
-    count_equal = sum(1 for t in sorted_times if t == axon_time)
-    rank = count_below + (count_equal + 1) / 2
-    percentile = rank / len(all_times)    
-    MIN_PENALTY = 0.25    
-    penalty = TIMING_PENALTY_DAMPING * ALPHA_TIME_DECAY * (MIN_PENALTY + (1.0 - MIN_PENALTY) * (1.0 - percentile))
-    bt.logging.trace(f"\033[32m{miner_uid} - Time: {axon_time:.3f}s, P: {percentile:.2f}, Penalty: {penalty:.4f} \033[0m")
-    return penalty
-    
+def measure_request_difficulty(
+    sku: str,
+    context: str,
+    num_recs: int,
+    num_participants: int,
+    min_context_len: int = 50,
+    max_context_len: int = CONST.MAX_CONTEXT_TEXT_LENGTH,
+    min_recs: int = CONST.MIN_RECS_PER_REQUEST,
+    max_recs: int = CONST.MAX_RECS_PER_REQUEST,
+    min_participants: int = 1,
+    max_participants: int = 16,
+    base: float = 1.0,
+    min_decay: float = 0.9,   # 10% penalty for easiest
+    max_decay: float = 1.0    # no penalty for hardest
+) -> float:
+    """
+    Returns a decay factor in [min_decay, max_decay].
+    - Easiest requests get min_decay (0.9).
+    - Hardest requests get max_decay (1.0, no penalty).
+    """
+    context_weight = 0.7
+    recs_weight = 0.4
+    participants_weight = 0.8
+    context_len = len(context)
+    context_factor = (context_len - min_context_len) / (max_context_len - min_context_len)
+    context_factor = max(0.0, min(context_factor, 1.0))
+    recs_factor = (num_recs - min_recs) / (max_recs - min_recs)
+    recs_factor = max(0.0, min(recs_factor, 1.0))
+    part_factor = (num_participants - min_participants) / (max_participants - min_participants)
+    part_factor = max(0.0, min(part_factor, 1.0))
+
+    raw_difficulty = base * (1 + context_weight * context_factor) * (1 + recs_weight * recs_factor) * (1 + participants_weight * part_factor)
+    max_difficulty = base * (1 + context_weight) * (1 + recs_weight) * (1 + participants_weight)
+
+    # Map to decay factor in [min_decay, max_decay]
+    decay = min_decay + (max_decay - min_decay) * (raw_difficulty - 1.0) / (max_difficulty - 1.0)
+    decay = max(min_decay, min(decay, max_decay))
+    return float(decay)
