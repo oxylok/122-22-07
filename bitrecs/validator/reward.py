@@ -291,10 +291,9 @@ def get_rewards(
     
     difficulty = measure_request_difficulty(
         sku=ground_truth.query,
-        context=ground_truth.context,
-        num_recs=ground_truth.num_results,
-        num_participants=len(responses), #Todo reduce to valid only?
         catalog_size=len(store_catalog),
+        num_recs=ground_truth.num_results,
+        num_participants=len(responses), #Todo reduce to valid only?        
         min_catalog_size=CONST.MIN_CATALOG_SIZE,
         max_catalog_size=CONST.MAX_CATALOG_SIZE,
         min_recs=CONST.MIN_RECS_PER_REQUEST,
