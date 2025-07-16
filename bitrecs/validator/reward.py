@@ -32,10 +32,10 @@ from bitrecs.utils import constants as CONST
 BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
-ALPHA_TIME_DECAY = 0.05
 
 CONSENSUS_BONUS_MULTIPLIER = 1.01
 SUSPECT_MINER_DECAY = 0.970
+USE_DIFFICULTY_ADJUSTMENT = False
 
 
 ACTION_WEIGHTS = {
@@ -160,8 +160,7 @@ def reward(
     
     try:
         score = 0.0
-        if response.is_timeout:           
-            #bt.logging.error(f"{response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
+        if response.is_timeout:
             bt.logging.error(f"{response.axon.hotkey[:8]} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
         if response.is_failure:            
@@ -179,8 +178,11 @@ def reward(
         if len(response.models_used) != 1:
             bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey[:8]}")
             return 0.0
-        if response.axon.process_time < r_limit or response.dendrite.process_time < r_limit:
-            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} time: {response.axon.process_time} < {r_limit} \033[0m")
+        if response.axon.process_time < r_limit:
+            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} axon time: {response.axon.process_time} < {r_limit} \033[0m")
+            return 0.0
+        if response.dendrite.process_time < r_limit:
+            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} dendrite time: {response.dendrite.process_time} < {r_limit} \033[0m")
             return 0.0
         if response.query != ground_truth.query:
             bt.logging.error(f"{response.miner_uid} query mismatch: {response.query} != {ground_truth.query}")
@@ -199,13 +201,13 @@ def reward(
                 product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
-                    bt.logging.warning(f"{response.miner_uid} has query in results: {response.miner_hotkey[:8]}")
+                    bt.logging.error(f"{response.miner_uid} has query in results: {response.miner_hotkey[:8]}")
                     return 0.0
                 if sku in valid_items:
-                    bt.logging.warning(f"{response.miner_uid} has duplicate results: {response.miner_hotkey[:8]}")
+                    bt.logging.error(f"{response.miner_uid} has duplicate results: {response.miner_hotkey[:8]}")
                     return 0.0
                 if not catalog_validator.validate_sku(sku):
-                    bt.logging.warning(f"{response.miner_uid} has invalid results: {response.miner_hotkey[:8]}")
+                    bt.logging.error(f"{response.miner_uid} has invalid results: {response.miner_hotkey[:8]}")
                     return 0.00
                 
                 valid_items.add(sku)
@@ -214,7 +216,7 @@ def reward(
                 return 0.0
 
         if len(valid_items) != ground_truth.num_results:
-            bt.logging.warning(f"{response.miner_uid} invalid number of valid_items: {response.miner_hotkey[:8]}")
+            bt.logging.error(f"{response.miner_uid} invalid number of valid_items: {response.miner_hotkey[:8]}")
             return 0.0
         
         score = BASE_REWARD
@@ -283,17 +285,18 @@ def get_rewards(
         max_time = max(valid_times)
         avg_time = sum(valid_times) / len(valid_times)
         spread = max_time - min_time
-        bt.logging.trace(f"Batch: min={min_time:.3f}s, max={max_time:.3f}s, avg={avg_time:.3f}s, spread={spread:.3f}s")
+        bt.logging.trace(f"Batch: min={min_time:.4f}s, max={max_time:.4f}s, avg={avg_time:.4f}s, spread={spread:.4f}s")
         if spread > 2.0:            
-            bt.logging.info(f"\033[33mWide Spread detected: {spread:.3f}s\033[0m")
+            bt.logging.info(f"\033[33mWide Spread detected: {spread:.4f}s\033[0m")
     
     difficulty = measure_request_difficulty(
         sku=ground_truth.query,
         context=ground_truth.context,
         num_recs=ground_truth.num_results,
         num_participants=len(responses), #Todo reduce to valid only?
-        min_context_len=2500,
-        max_context_len=CONST.MAX_CONTEXT_TEXT_LENGTH,
+        catalog_size=len(store_catalog),
+        min_catalog_size=CONST.MIN_CATALOG_SIZE,
+        max_catalog_size=CONST.MAX_CATALOG_SIZE,
         min_recs=CONST.MIN_RECS_PER_REQUEST,
         max_recs=CONST.MAX_RECS_PER_REQUEST,
         min_participants=1,
@@ -302,10 +305,11 @@ def get_rewards(
         min_decay=0.9,   # 10% penalty for easiest
         max_decay=1.0    # no penalty for hardest
     )
-    
-    #bt.logging.trace(f"Query: {ground_truth.query}, num_recs: {ground_truth.num_results}, context {len(ground_truth.context)}, participants: {len(responses)}")
-    df_code = color_code_difficulty(difficulty)
-    bt.logging.trace(f"Request difficulty: {df_code} (decay factor)")
+
+    difficulty_statement = get_difficulty_statement(difficulty)
+    bt.logging.trace(f"{difficulty_statement}")
+    if not USE_DIFFICULTY_ADJUSTMENT:
+        bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
 
     rewards = []
     for i, response in enumerate(responses):        
@@ -313,21 +317,22 @@ def get_rewards(
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-        #final_score = base_reward * difficulty        
-        final_score = base_reward
+        if USE_DIFFICULTY_ADJUSTMENT:
+            final_score = base_reward * difficulty
+        else:
+            final_score = base_reward
         rewards.append(final_score)
-
-    bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
-    return np.array(rewards, dtype=float) 
+    
+    return np.array(rewards, dtype=float)
 
 
 def measure_request_difficulty(
     sku: str,
-    context: str,
+    catalog_size: int,
     num_recs: int,
     num_participants: int,
-    min_context_len: int = 2500,
-    max_context_len: int = CONST.MAX_CONTEXT_TEXT_LENGTH,
+    min_catalog_size: int = 5,
+    max_catalog_size: int = 1000,
     min_recs: int = CONST.MIN_RECS_PER_REQUEST,
     max_recs: int = CONST.MAX_RECS_PER_REQUEST,
     min_participants: int = 1,
@@ -341,19 +346,20 @@ def measure_request_difficulty(
     - Easiest requests get min_decay (0.9).
     - Hardest requests get max_decay (1.0, no penalty).
     """
-    context_weight = 0.4
+    catalog_weight = 0.4
     recs_weight = 0.1
-    participants_weight = 0.3
-    context_len = len(context)
-    context_factor = (context_len - min_context_len) / (max_context_len - min_context_len)
-    context_factor = max(0.0, min(context_factor, 1.0))
+    participants_weight = 0.2
+
+    # Use catalog size instead of context length
+    catalog_factor = (catalog_size - min_catalog_size) / (max_catalog_size - min_catalog_size)
+    catalog_factor = max(0.0, min(catalog_factor, 1.0))
     recs_factor = (num_recs - min_recs) / (max_recs - min_recs)
     recs_factor = max(0.0, min(recs_factor, 1.0))
     part_factor = (num_participants - min_participants) / (max_participants - min_participants)
     part_factor = max(0.0, min(part_factor, 1.0))
 
-    raw_difficulty = base * (1 + context_weight * context_factor) * (1 + recs_weight * recs_factor) * (1 + participants_weight * part_factor)
-    max_difficulty = base * (1 + context_weight) * (1 + recs_weight) * (1 + participants_weight)
+    raw_difficulty = base * (1 + catalog_weight * catalog_factor) * (1 + recs_weight * recs_factor) * (1 + participants_weight * part_factor)
+    max_difficulty = base * (1 + catalog_weight) * (1 + recs_weight) * (1 + participants_weight)
 
     # Map to decay factor in [min_decay, max_decay]
     decay = min_decay + (max_decay - min_decay) * (raw_difficulty - 1.0) / (max_difficulty - 1.0)
@@ -361,17 +367,22 @@ def measure_request_difficulty(
     return float(decay)
 
 
-def color_code_difficulty(difficulty: float) -> str:
+def get_difficulty_statement(difficulty: float) -> str:
     """
-    Color-codes the decay factor:
-    - Green for easiest (decay near 1.0, no penalty)
-    - Yellow for medium
-    - Red for hardest (decay near 0.9, most penalty)
+    Returns a human-readable statement about the request difficulty.
     """
-    if difficulty >= 0.98:
-        color = "\033[1;32m"  # Green (easy)
-    elif difficulty >= 0.94:
-        color = "\033[1;33m"  # Yellow (medium)
+    if difficulty <= 0.93:
+        return f"Difficulty is very easy: \033[1;32m{difficulty:.3f}\033[0m"
+    elif difficulty <= 0.97:
+        return f"Difficulty is medium: \033[1;33m{difficulty:.3f}\033[0m"
     else:
-        color = "\033[1;31m"  # Red (hard)
-    return f"{color}{difficulty:.3f}\033[0m"
+        return f"Difficulty is hard: \033[1;31m{difficulty:.3f}\033[0m"
+
+
+def color_code_difficulty(difficulty: float) -> str:
+    if difficulty <= 0.93:
+        return "green"
+    elif difficulty <= 0.97:
+        return "yellow"
+    else:
+        return "red"
