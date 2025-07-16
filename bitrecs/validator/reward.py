@@ -376,12 +376,3 @@ def get_difficulty_statement(difficulty: float) -> str:
         return f"Difficulty is medium: \033[1;33m{difficulty:.3f}\033[0m"
     else:
         return f"Difficulty is hard: \033[1;31m{difficulty:.3f}\033[0m"
-
-
-def color_code_difficulty(difficulty: float) -> str:
-    if difficulty <= 0.93:
-        return "green"
-    elif difficulty <= 0.97:
-        return "yellow"
-    else:
-        return "red"

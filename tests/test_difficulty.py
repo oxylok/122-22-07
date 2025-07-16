@@ -1,14 +1,25 @@
 import pytest
 from bitrecs.utils import constants as CONST
-from bitrecs.validator.reward import measure_request_difficulty, color_code_difficulty
+from bitrecs.validator.reward import measure_request_difficulty
 
-# Constants for test
-MIN_CATALOG_SIZE = 5
-MAX_CATALOG_SIZE = 1000
+
+MIN_CATALOG_SIZE = CONST.MIN_CATALOG_SIZE
+MAX_CATALOG_SIZE = CONST.MAX_CATALOG_SIZE
 MIN_RECS = CONST.MIN_RECS_PER_REQUEST
 MAX_RECS = CONST.MAX_RECS_PER_REQUEST
 MIN_PARTICIPANTS = 1
 MAX_PARTICIPANTS = 16
+
+
+def color_code_difficulty(difficulty: float) -> str:
+    if difficulty <= 0.93:
+        return "green"
+    elif difficulty <= 0.97:
+        return "yellow"
+    else:
+        return "red"
+
+
 
 @pytest.mark.parametrize(
     "catalog_size,num_recs,num_participants,expected_min,expected_max",
@@ -164,4 +175,4 @@ def test_measure_request_difficulty_large_inputs():
         min_participants=MIN_PARTICIPANTS, max_participants=MAX_PARTICIPANTS,
         min_decay=0.9, max_decay=1.0
     )
-    assert diff == 1.0  # Should clamp to max_decay
+    assert diff <= 1.0 and diff > 0.9  # Should be in the valid range

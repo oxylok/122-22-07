@@ -31,7 +31,6 @@ import anyio
 import subprocess
 from dotenv import load_dotenv
 load_dotenv()
-
 from random import SystemRandom
 safe_random = SystemRandom()
 from typing import List, Union, Optional
@@ -236,11 +235,8 @@ class BaseValidatorNeuron(BaseNeuron):
             if num_requests < 4:
                 return 2
             #return max(2, min(5, num_requests // 3))
-            return max(3, min(8, num_requests // 3))
-        
-        # if self.config.logging.trace:
-        #     print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
-        
+            return max(3, min(8, num_requests // 3)) #Wider consensus set
+  
         st = time.perf_counter()
         try:
             good_requests = [r for r in requests if r.is_success]
@@ -575,16 +571,8 @@ class BaseValidatorNeuron(BaseNeuron):
             return
 
         # Use normalized scores for weights
-        raw_weights = self.get_normalized_scores()        
-        
-        # bt.logging.debug(f"Array is of type: {type(raw_weights)}")
-        # bt.logging.debug(f"No. of dimensions: {raw_weights.ndim}")
-        # bt.logging.debug(f"Shape of array: {raw_weights.shape}")
-        # bt.logging.debug(f"Size of array: {raw_weights.size}")
-        # bt.logging.debug(f"Array stores elements of type: {raw_weights.dtype}")
-        # bt.logging.debug(f"uids: {self.metagraph.uids.tolist()}")
-        # bt.logging.debug(f"raw_weights: {raw_weights}")
-        
+        raw_weights = self.get_normalized_scores()
+
         # Process the raw weights to final_weights via subtensor limitations.
         try:
             (
@@ -600,9 +588,6 @@ class BaseValidatorNeuron(BaseNeuron):
         except Exception as e:
             bt.logging.error(f"process_weights_for_netuid function error: {e}")
             pass
-            
-        #bt.logging.debug(f"processed_weight_uids {processed_weight_uids}")        
-        #bt.logging.debug(f"processed_weights {processed_weights}")
 
         # Convert to uint16 weights and uids.
         try:
@@ -612,9 +597,6 @@ class BaseValidatorNeuron(BaseNeuron):
             ) = convert_weights_and_uids_for_emit(
                 uids=processed_weight_uids, weights=processed_weights
             )
-                        
-            #bt.logging.debug(f"uint_weights {uint_weights}")        
-            #bt.logging.debug(f"uint_uids {uint_uids}")
 
             # Log weights to wandb before chain update
             weights_dict = {str(uid): float(weight) for uid, weight in zip(uint_uids, uint_weights)}
@@ -704,16 +686,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return
 
         if rewards.size != uids_array.size:
-            raise ValueError(f"Shape mismatch: rewards {rewards.shape} vs uids {uids_array.shape}")     
-
-        #Batch Norm
-        # batch_mean = np.mean(rewards)
-        # batch_std = np.std(rewards)
-        # if batch_std > 1e-8:
-        #     norm_rewards = (rewards - batch_mean) / batch_std
-        #     norm_rewards = (norm_rewards - norm_rewards.min()) / (norm_rewards.max() - norm_rewards.min() + 1e-8)
-        # else:
-        #     norm_rewards = np.zeros_like(rewards)
+            raise ValueError(f"Shape mismatch: rewards {rewards.shape} vs uids {uids_array.shape}")
         
         # Adaptive alpha for zero rewards
         default_alpha = self.config.neuron.moving_average_alpha
@@ -748,9 +721,7 @@ class BaseValidatorNeuron(BaseNeuron):
             normalized = np.ones_like(self.scores) / len(self.scores)
         
         # Apply non-linear transformation
-        nonlinear_power = 1.1
-        if self.network == "mainnet":
-            nonlinear_power = 1.1
+        nonlinear_power = 1.1      
         transformed = np.power(normalized, nonlinear_power)
         
         # Final normalization
