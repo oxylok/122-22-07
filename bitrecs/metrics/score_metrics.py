@@ -44,8 +44,8 @@ def display_normalized_analysis(validator_instance):
         
         # Show top normalized weights
         sorted_normalized = sorted(active_normalized.items(), key=lambda x: x[1], reverse=True)
-        bt.logging.info(f"Top 5 normalized weights:")
-        for i, (uid, weight) in enumerate(sorted_normalized[:5], 1):
+        bt.logging.info(f"Top 10 normalized weights:")
+        for i, (uid, weight) in enumerate(sorted_normalized[:10], 1):
             percentage = weight * 100
             bt.logging.info(f"  {i}. UID {uid:2d}: {weight:.6f} ({percentage:.2f}%)")
         
