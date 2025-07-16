@@ -292,7 +292,7 @@ def get_rewards(
         context=ground_truth.context,
         num_recs=ground_truth.num_results,
         num_participants=len(responses), #Todo reduce to valid only?
-        min_context_len=100,
+        min_context_len=2500,
         max_context_len=CONST.MAX_CONTEXT_TEXT_LENGTH,
         min_recs=CONST.MIN_RECS_PER_REQUEST,
         max_recs=CONST.MAX_RECS_PER_REQUEST,
@@ -313,9 +313,11 @@ def get_rewards(
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
-        final_score = base_reward * difficulty
+        #final_score = base_reward * difficulty        
+        final_score = base_reward
         rewards.append(final_score)
 
+    bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
     return np.array(rewards, dtype=float) 
 
 
@@ -324,7 +326,7 @@ def measure_request_difficulty(
     context: str,
     num_recs: int,
     num_participants: int,
-    min_context_len: int = 50,
+    min_context_len: int = 2500,
     max_context_len: int = CONST.MAX_CONTEXT_TEXT_LENGTH,
     min_recs: int = CONST.MIN_RECS_PER_REQUEST,
     max_recs: int = CONST.MAX_RECS_PER_REQUEST,
@@ -339,9 +341,9 @@ def measure_request_difficulty(
     - Easiest requests get min_decay (0.9).
     - Hardest requests get max_decay (1.0, no penalty).
     """
-    context_weight = 0.7
-    recs_weight = 0.4
-    participants_weight = 0.8
+    context_weight = 0.4
+    recs_weight = 0.1
+    participants_weight = 0.3
     context_len = len(context)
     context_factor = (context_len - min_context_len) / (max_context_len - min_context_len)
     context_factor = max(0.0, min(context_factor, 1.0))
