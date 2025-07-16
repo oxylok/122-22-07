@@ -745,13 +745,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if sum_scores > 0:
             normalized = self.scores / sum_scores
         else:
-            normalized = np.ones_like(self.scores) / len(self.scores)        
-        
-        min_threshold = 1e-6
-        normalized = np.clip(normalized, min_threshold, 1.0)
-        
-        # Renormalize after clipping
-        normalized = normalized / np.sum(normalized)
+            normalized = np.ones_like(self.scores) / len(self.scores)
         
         # Apply non-linear transformation
         nonlinear_power = 1.1
