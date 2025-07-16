@@ -77,8 +77,7 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
 
     count = 0
     for item in results:
-        try:            
-            #thing = json.loads(item)
+        try:
             thing = json_repair.loads(item)
             jsonschema.validate(thing, schema)           
             count += 1
@@ -98,6 +97,7 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
 def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
     """
     Reward miners who generate positive actions on ecommerce sites
+    DISABLED DURING BOOTSTRAPPING PHASE
 
     """
     try:
@@ -289,11 +289,11 @@ def get_rewards(
         if spread > 2.0:            
             bt.logging.info(f"\033[33mWide Spread detected: {spread:.4f}s\033[0m")
     
-    difficulty = measure_request_difficulty(
+    difficulty_decay = measure_request_difficulty(
         sku=ground_truth.query,
         catalog_size=len(store_catalog),
         num_recs=ground_truth.num_results,
-        num_participants=len(responses), #Todo reduce to valid only?        
+        num_participants=len(responses),
         min_catalog_size=CONST.MIN_CATALOG_SIZE,
         max_catalog_size=CONST.MAX_CATALOG_SIZE,
         min_recs=CONST.MIN_RECS_PER_REQUEST,
@@ -305,7 +305,7 @@ def get_rewards(
         max_decay=1.0    # no penalty for hardest
     )
 
-    difficulty_statement = get_difficulty_statement(difficulty)
+    difficulty_statement = get_difficulty_statement(difficulty_decay)
     bt.logging.trace(f"{difficulty_statement}")
     if not USE_DIFFICULTY_ADJUSTMENT:
         bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
@@ -317,7 +317,7 @@ def get_rewards(
             rewards.append(0.0)
             continue
         if USE_DIFFICULTY_ADJUSTMENT:
-            final_score = base_reward * difficulty
+            final_score = base_reward * difficulty_decay
         else:
             final_score = base_reward
         rewards.append(final_score)

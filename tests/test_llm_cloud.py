@@ -456,6 +456,7 @@ def test_call_multiple_open_router_amazon_5k_random():
     print("FULL PASS")
 
 
+@pytest.mark.skip(reason="skipped - chutes missing provider")
 def test_call_chutes():
     #raw_products = product_5k() 
     #raw_products = product_1k()

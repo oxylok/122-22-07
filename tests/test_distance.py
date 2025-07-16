@@ -473,7 +473,7 @@ def test_local_llm_base_config_jaccard():
         fake_set = set(str(r["sku"]) for r in fake_recs)
         rec_sets.append(fake_set)
         print(f"Set {i} (Random) {this_model}: {sorted(list(fake_set))}")        
-        model_recs[this_model] = recs
+        model_recs[this_model] = fake_recs
         models_used.append(this_model)
    
     print("\nJaccard Distance Matrix:")
