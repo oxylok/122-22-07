@@ -28,6 +28,7 @@ safe_random = SystemRandom()
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import timedelta
+from bitrecs import __version__ as this_version
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
 from bitrecs.utils.r2 import ValidatorUploadRequest
@@ -385,7 +386,12 @@ class Validator(BaseValidatorNeuron):
         """
         try:
             proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
-            r = requests.get(f"{proxy_url}/cooldown")
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {os.environ.get('BITRECS_API_KEY')}",
+                'User-Agent': f'Bitrecs-Node/{this_version}'
+            }        
+            r = requests.get(f"{proxy_url}/cooldown", headers=headers, timeout=10)
             cooldowns = r.json()
             r.raise_for_status()
             self.BANNED_IPS = cooldowns["banned_ips"] or []
