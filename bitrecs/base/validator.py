@@ -159,9 +159,12 @@ class BaseValidatorNeuron(BaseNeuron):
         self.r_limit = 0.5
         self.sample_size = self.config.neuron.sample_size
         if self.network == "mainnet":
-            self.sample_size = 16            
+            self.sample_size = 16
         else:
-            self.sample_size = 30
+            self.sample_size = 24
+        self.min_set_size = self.sample_size
+        if self.network != "mainnet": #Testing override
+            self.min_set_size = CONST.MIN_ACTIVE_MINERS
         
         write_node_info(
             network=self.network,
@@ -571,7 +574,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return
         
         # Lets not update until we have enough active miners to prevent normalizing over varying set lengths
-        if len(self.active_miners) != self.sample_size:
+        if len(self.active_miners) < self.min_set_size:
             bt.logging.warning("Not enough active miners to update weights. Skipping.")
             bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
             return
