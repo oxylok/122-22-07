@@ -161,7 +161,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.trace(f"Pinging {len(valid_uids)} valid miners...")
         start_time = time.perf_counter()
         selected_miners = []
-        batch_size = CONST.MINER_BATCH_SIZE
+        batch_size = CONST.MINER_PING_BATCH_SIZE
         
         for i in range(0, len(valid_uids), batch_size):
             batch_uids = valid_uids[i:i + batch_size]

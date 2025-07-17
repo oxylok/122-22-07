@@ -410,6 +410,12 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
+                        failure_rate = np.sum(rewards == 0) / len(rewards)
+                        if failure_rate > CONST.BATCH_FAILURE_THRESHOLD:
+                            bt.logging.error(f"High failure rate ({failure_rate:.2%}), treshold {CONST.BATCH_FAILURE_THRESHOLD:.2%} - skipping score update for this batch.")
+                            synapse_with_event.event.set()
+                            continue
+                        
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
                         consensus_bonus_applied = False                        
