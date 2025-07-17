@@ -124,21 +124,25 @@ def get_random_miner_uids3(self,
     avail_uids = [] 
     suspect_uids = []  
     for uid in range(self.metagraph.n.item()):
+        if uid == 0 or uid == self.uid:
+            continue
         if not self.metagraph.axons[uid].is_serving:
             continue
-        # if self.metagraph.validator_permit[uid] and self.metagraph.S[uid] > 1000:
-        #     continue
-        # if self.metagraph.S[uid] == 0:
-        #     continue
-
+        this_stake = float(self.metagraph.S[uid])
+        stake_limit = float(self.config.neuron.vpermit_tao_limit)
+        if self.metagraph.validator_permit[uid] and this_stake > stake_limit:
+            continue
+        hk = self.metagraph.axons[uid].hotkey
+        if hk not in self.hotkeys:
+            continue
         if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
             suspect_uids.append(uid)
             continue
         if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
-            suspect_uids.append(uid)            
+            suspect_uids.append(uid)
             continue
         if banned_ips and self.metagraph.axons[uid].ip in banned_ips:
-            suspect_uids.append(uid)            
+            suspect_uids.append(uid)
             continue
     
         avail_uids.append(uid)

@@ -144,37 +144,14 @@ class Validator(BaseValidatorNeuron):
         Returns list of responsive miner UIDs.
         """
         # Get random miners
-        available_uids, suspect_uids = get_random_miner_uids3(self,
+        valid_uids, suspect_uids = get_random_miner_uids3(self,
             k=self.sample_size, 
             banned_coldkeys=self.BANNED_COLDKEYS,
             banned_hotkeys=self.BANNED_HOTKEYS,
             banned_ips=self.BANNED_IPS)
         
         self.suspect_miners = suspect_uids
-        
-        if not available_uids:
-            bt.logging.error("No random qualified miners found")
-            return []
-        
-        # Filter for valid miners
-        valid_uids = []
-        for uid in set(available_uids):
-            if uid == 0 or uid == self.uid:
-                continue
-            if not self.metagraph.axons[uid].is_serving:
-                continue
-            
-            this_stake = float(self.metagraph.S[uid])
-            stake_limit = float(self.config.neuron.vpermit_tao_limit)
-            if this_stake > stake_limit:
-                continue
-                
-            hk = self.metagraph.axons[uid].hotkey
-            if hk not in self.hotkeys:
-                continue
-                
-            valid_uids.append(uid)
-        
+       
         if not valid_uids:
             bt.logging.error("No valid miners found for ping test")
             return []
