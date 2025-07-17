@@ -721,7 +721,7 @@ class BaseValidatorNeuron(BaseNeuron):
             normalized = np.ones_like(self.scores) / len(self.scores)
         
         # Apply non-linear transformation
-        nonlinear_power = 1.1      
+        nonlinear_power = 1.0     
         transformed = np.power(normalized, nonlinear_power)
         
         # Final normalization
