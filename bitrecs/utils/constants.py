@@ -32,6 +32,7 @@ Constants:
     MAX_MINER_FILL_ATTEMPTS (int): Maximum number of attempts for miner battery loading.
     SCORE_DISPLAY_ENABLED (bool): Flag to enable scoring metrics display.
     SCORE_DISPLAY_INTERVAL (int): Length of seconds between metrics displays.
+    EPOCH_TEMPO (int): Number of blocks in an epoch.
 
 """
 
@@ -61,3 +62,4 @@ MIN_ACTIVE_MINERS = 7
 MAX_MINER_FILL_ATTEMPTS = 5
 SCORE_DISPLAY_ENABLED = True
 SCORE_DISPLAY_INTERVAL = 180
+EPOCH_TEMPO = 360

@@ -560,14 +560,20 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def set_weights(self):
         """Sets the validator weights to the metagraph hotkeys based on the scores."""
-        bt.logging.info(f"set_weights on chain start")       
-        bt.logging.trace(f"Scores: {self.scores}")       
+        bt.logging.info(f"set_weights on chain start")
+        bt.logging.trace(f"Scores: {self.scores}")
 
         if np.isnan(self.scores).any():
             bt.logging.warning("Scores contain NaN values.")
         
         if np.all(self.scores == 0):
             bt.logging.warning("Scores are all zero.")
+            return
+        
+        # Lets not update until we have enough active miners to prevent normalizing over varying set lengths
+        if len(self.active_miners) != len(self.sample_size):
+            bt.logging.warning("Not enough active miners to update weights. Skipping.")
+            bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
             return
 
         # Use normalized scores for weights
