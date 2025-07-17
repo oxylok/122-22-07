@@ -571,7 +571,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return
         
         # Lets not update until we have enough active miners to prevent normalizing over varying set lengths
-        if len(self.active_miners) != len(self.sample_size):
+        if len(self.active_miners) != self.sample_size:
             bt.logging.warning("Not enough active miners to update weights. Skipping.")
             bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
             return
