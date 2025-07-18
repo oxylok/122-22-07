@@ -30,6 +30,8 @@ import wandb
 import anyio
 import subprocess
 from dotenv import load_dotenv
+
+from bitrecs.utils.uids import get_all_miner_uids
 load_dotenv()
 from random import SystemRandom
 safe_random = SystemRandom()
@@ -220,9 +222,11 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"Validator Initialized at block: {self.block}")
 
     def update_total_uids(self):
-        """ Update the total_uids set based on the current metagraph. """        
+        """ Update the total_uids set based on the current metagraph. """     
+        
+        uids = get_all_miner_uids()
         self.total_uids = set(
-            uid for uid in range(self.metagraph.n.item())
+            uid for uid in uids
             if uid not in self.exclusion_uids
         )
         bt.logging.info(f"Total UIDs updated: {len(self.total_uids)}")

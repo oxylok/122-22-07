@@ -163,6 +163,47 @@ def get_random_miner_uids3(self,
         return [], suspect_uids
 
 
+
+def get_all_miner_uids(self,   
+    banned_coldkeys: set = None, 
+    banned_hotkeys: set = None,
+    banned_ips: set = None) -> Tuple[list[int], list[int]]:
+
+    """Fetch random miners that meet criteria."""    
+    
+    avail_uids = [] 
+    suspect_uids = []  
+    for uid in range(self.metagraph.n.item()):
+        if uid == 0 or uid == self.uid:
+            continue
+        if not self.metagraph.axons[uid].is_serving:
+            continue
+        this_stake = float(self.metagraph.S[uid])
+        stake_limit = float(self.config.neuron.vpermit_tao_limit)
+        if self.metagraph.validator_permit[uid] and this_stake > stake_limit:
+            continue
+        hk = self.metagraph.axons[uid].hotkey
+        if hk not in self.hotkeys:
+            continue
+        if banned_coldkeys and self.metagraph.axons[uid].coldkey in banned_coldkeys:
+            suspect_uids.append(uid)
+            continue
+        if banned_hotkeys and self.metagraph.axons[uid].hotkey in banned_hotkeys:
+            suspect_uids.append(uid)
+            continue
+        if banned_ips and self.metagraph.axons[uid].ip in banned_ips:
+            suspect_uids.append(uid)
+            continue
+    
+        avail_uids.append(uid)
+
+    suspect_uids = list(set(suspect_uids))
+    bt.logging.trace(f"\033[32mpre candidate_uids: {avail_uids} from k {k} \033[0m")    
+    bt.logging.trace(f"\033[33mcooldown nodes: {suspect_uids} \033[0m")
+
+    return list(set(avail_uids)), suspect_uids
+
+
 def best_uid(metagraph: bt.metagraph) -> int:
     """Returns the best performing UID in the metagraph."""
     return max(range(metagraph.n), key=lambda uid: metagraph.I[uid].item()) 
