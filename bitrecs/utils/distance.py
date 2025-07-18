@@ -1,8 +1,10 @@
 import json
 import json_repair
+import bittensor as bt
 from typing import List, Optional, Set
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.color import ColorScheme, ColorPalette
+
 
 
 def calculate_jaccard_distance(set1: Set, set2: Set) -> float:  
@@ -507,6 +509,11 @@ def display_rec_matrix_numpy(
     except ImportError:
         # Fallback to optimized version if NumPy not available
         return display_rec_matrix(rec_sets, models_used, highlight_indices, color_scheme)
+    
+    bt.logging.trace("DEBUG: rec_sets =", rec_sets)
+    bt.logging.trace("DEBUG: all_skus =", all_skus)
+    for i, rec_set in enumerate(rec_sets):
+        bt.logging.trace(f"Set {i}: {rec_set}")
     
     n = len(rec_sets)
     if n == 0:
