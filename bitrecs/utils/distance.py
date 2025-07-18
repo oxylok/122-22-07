@@ -508,8 +508,7 @@ def display_rec_matrix_numpy(
         import numpy as np
     except ImportError:
         # Fallback to optimized version if NumPy not available
-        return display_rec_matrix(rec_sets, models_used, highlight_indices, color_scheme)
-    
+        return display_rec_matrix(rec_sets, models_used, highlight_indices, color_scheme)   
    
     
     n = len(rec_sets)
@@ -527,11 +526,10 @@ def display_rec_matrix_numpy(
     if not all_skus:
         return "No SKUs found in recommendation sets"
     
-    bt.logging.trace("DEBUG: rec_sets =", rec_sets)
-    bt.logging.trace("DEBUG: all_skus =", all_skus)
-    for i, rec_set in enumerate(rec_sets):
-        bt.logging.trace(f"Set {i}: {rec_set}")
-
+    # bt.logging.trace("DEBUG: rec_sets =", rec_sets)
+    # bt.logging.trace("DEBUG: all_skus =", all_skus)
+    # for i, rec_set in enumerate(rec_sets):
+    #     bt.logging.trace(f"Set {i}: {rec_set}")
     
     sku_to_idx = {sku: i for i, sku in enumerate(all_skus)}
     
