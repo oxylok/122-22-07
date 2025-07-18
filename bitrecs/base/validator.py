@@ -175,7 +175,8 @@ class BaseValidatorNeuron(BaseNeuron):
             hotkey=self.wallet.hotkey.ss58_address,
             neuron_type=self.neuron_type,
             sample_size=self.sample_size,
-            v_limit=self.config.neuron.vpermit_tao_limit
+            v_limit=self.config.neuron.vpermit_tao_limit,
+            epoch_length=self.config.neuron.epoch_length
         )
 
         if self.config.wandb.enabled == True:

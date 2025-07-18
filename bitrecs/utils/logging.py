@@ -46,15 +46,16 @@ def setup_events_logger(full_path, events_retention_size):
 
 
 
-def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit) -> None:
+def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit, epoch_length) -> None:
     """Write node information for the auto-updater"""
-    #node_info_file = 'node_info.json'    
+    #node_info_file = 'node_info.json'
     node_info = {
         "network": network,
         "uid": uid,
         "hotkey": hotkey,
         "neuron_type": neuron_type,
         "sample_size": sample_size,
+        "epoch_length": epoch_length,
         "v_limit": v_limit,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
