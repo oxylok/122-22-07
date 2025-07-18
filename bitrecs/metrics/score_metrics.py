@@ -302,6 +302,9 @@ def display_epoch_info(validator_instance):
 def display_coverage_info(validator_instance):
     """Display coverage information for the current validator, accounting for unresponsive UIDs."""
     try:
+        if validator_instance.first_sync:
+            return
+        
         seen = getattr(validator_instance, "seen_uids", set())
         total = getattr(validator_instance, "total_uids", set())
         unresponsive = getattr(validator_instance, "unresponsive_uids", set())
