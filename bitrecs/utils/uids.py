@@ -198,8 +198,8 @@ def get_all_miner_uids(self,
         avail_uids.append(uid)
 
     suspect_uids = list(set(suspect_uids))
-    bt.logging.trace(f"\033[32mpre candidate_uids: {avail_uids} from k {k} \033[0m")    
-    bt.logging.trace(f"\033[33mcooldown nodes: {suspect_uids} \033[0m")
+    bt.logging.trace(f"\033[32mALL candidate_uids: {avail_uids}\033[0m")
+    bt.logging.trace(f"\033[33mcooldown nodes: {suspect_uids} 033[0m")
 
     return list(set(avail_uids)), suspect_uids
 
