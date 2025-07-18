@@ -191,7 +191,7 @@ class Validator(BaseValidatorNeuron):
                 elif result:
                     bt.logging.trace(f"ping:{uid}:OK")
                     selected_miners.append(uid)
-                    self.unresponsive_uids.remove(uid)
+                    self.unresponsive_uids.discard(uid)
                 else:
                     self.unresponsive_uids.add(uid)
                     bt.logging.trace(f"ping:{uid}:FALSE")
