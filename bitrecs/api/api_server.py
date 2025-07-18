@@ -197,7 +197,7 @@ class ApiServer:
         ts = int(time.time())
         if not self.validator.local_metadata:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
-            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "ts": ts})
+            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "error"})
         v = self.validator.local_metadata.to_dict()
         active_miners = self.validator.active_miners or []
         miner_count = len(active_miners)
@@ -206,7 +206,7 @@ class ApiServer:
         step = self.validator.step
         return JSONResponse(status_code=200, content={"detail": "version", 
                                                       "meta_data": v,
-                                                      "st": ts,
+                                                      "ts": ts,
                                                       "step": step,
                                                       "miner_count": miner_count,
                                                       "active_miners": active_miners,
