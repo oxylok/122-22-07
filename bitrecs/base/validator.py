@@ -154,9 +154,9 @@ class BaseValidatorNeuron(BaseNeuron):
         self.lock = asyncio.Lock()
         self.active_miners: List[int] = []
         self.suspect_miners: List[int] = []
-        self.covered_uids = set()
+        self.seen_uids = set()
         self.unresponsive_uids = set()
-        self.total_uids = set(range(self.metagraph.n.item()))  # All possible UIDs in the metagraph
+        self.total_uids = set(range(self.metagraph.n.item()))
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5

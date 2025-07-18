@@ -123,16 +123,9 @@ class Validator(BaseValidatorNeuron):
             if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
                 self.active_miners = list(set(selected_miners))
                 safe_random.shuffle(self.active_miners)
-                bt.logging.info(f"\033[1;32mSuccess! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")                
-                self.covered_uids.update(selected_miners)
-                responsive_uids = self.total_uids - self.unresponsive_uids
-                if responsive_uids:
-                    coverage = len(self.covered_uids & responsive_uids) / len(responsive_uids)
-                else:
-                    coverage = 0.0
-                bt.logging.info(f"\033[32mMiner UID coverage: {len(self.covered_uids & responsive_uids)}/{len(responsive_uids)} ({coverage:.2%})\033[0m")
-                total_coverage = len(self.covered_uids) / len(self.total_uids)
-                bt.logging.info(f"Total UID coverage (all time): {len(self.covered_uids)}/{len(self.total_uids)} ({total_coverage:.2%})")                
+                bt.logging.info(f"\033[1;32mSuccess! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
+                coverage = len(self.seen_uids) / len(self.total_uids)
+                bt.logging.info(f"Metagraph UID coverage (attempted): {len(self.seen_uids)}/{len(self.total_uids)} ({coverage:.2%})")
                 return #Good Battery
             
             # Not enough miners found
@@ -177,6 +170,7 @@ class Validator(BaseValidatorNeuron):
             batch_uids = valid_uids[i:i + batch_size]
             tasks = []
             for uid in batch_uids:
+                self.seen_uids.add(uid)
                 try:
                     port = int(self.metagraph.axons[uid].port)
                     task = asyncio.create_task(self._ping_miner_async(uid, port))
@@ -188,13 +182,14 @@ class Validator(BaseValidatorNeuron):
             for (uid, _), result in zip(tasks, results):
                 if isinstance(result, Exception):
                     bt.logging.trace(f"ping:{uid}:ERROR - {result}")
+                    self.unresponsive_uids.add(uid)
                 elif result:
                     bt.logging.trace(f"ping:{uid}:OK")
                     selected_miners.append(uid)
                     self.unresponsive_uids.discard(uid)
                 else:
-                    self.unresponsive_uids.add(uid)
                     bt.logging.trace(f"ping:{uid}:FALSE")
+                    self.unresponsive_uids.add(uid)
 
         
         duration = time.perf_counter() - start_time

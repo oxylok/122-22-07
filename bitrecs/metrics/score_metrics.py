@@ -302,27 +302,27 @@ def display_epoch_info(validator_instance):
 def display_coverage_info(validator_instance):
     """Display coverage information for the current validator, accounting for unresponsive UIDs."""
     try:
-        covered = validator_instance.covered_uids
-        total = validator_instance.total_uids
+        seen = getattr(validator_instance, "seen_uids", set())
+        total = getattr(validator_instance, "total_uids", set())
         unresponsive = getattr(validator_instance, "unresponsive_uids", set())
         responsive = total - unresponsive if total else set()
 
-        # Responsive coverage
+        # Responsive coverage: how many responsive UIDs have been seen
         if responsive:
-            responsive_coverage = len(covered & responsive) / len(responsive)
+            responsive_coverage = len(seen & responsive) / len(responsive)
         else:
             responsive_coverage = 0.0
 
-        # Total coverage
-        total_coverage = len(covered) / len(total) if total else 0.0
+        # Total coverage: how many total UIDs have been seen
+        total_coverage = len(seen) / len(total) if total else 0.0
 
         bt.logging.info(f"\033[1;35m=== COVERAGE INFO ===\033[0m")
-        bt.logging.info(f"Covered UIDs: {len(covered)}")
-        bt.logging.info(f"Total UIDs: {len(total)}")
+        bt.logging.info(f"Seen UIDs (attempted): {len(seen)}")
+        bt.logging.info(f"Total UIDs (metagraph): {len(total)}")
         bt.logging.info(f"Unresponsive UIDs: {len(unresponsive)}")
         bt.logging.info(f"Responsive UIDs: {len(responsive)}")
-        bt.logging.info(f"Responsive coverage: {len(covered & responsive)}/{len(responsive)} ({responsive_coverage:.2%})")
-        bt.logging.info(f"Total coverage (all time): {len(covered)}/{len(total)} ({total_coverage:.2%})")
+        bt.logging.info(f"Responsive coverage: {len(seen & responsive)}/{len(responsive)} ({responsive_coverage:.2%})")
+        bt.logging.info(f"Total coverage (all time): {len(seen)}/{len(total)} ({total_coverage:.2%})")
 
         # Scalable Unicode symbols for responsive coverage
         if responsive_coverage < 0.10:
