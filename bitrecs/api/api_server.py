@@ -199,31 +199,32 @@ class ApiServer:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
             return JSONResponse(status_code=500, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "meta_data error"})
         v = self.validator.local_metadata.to_dict()
-        active_miners = self.validator.active_miners or []
-        miner_count = len(active_miners)
-        coverage = len(self.validator.seen_uids) / len(self.validator.total_uids) if self.validator.total_uids else 0.0
-        coverage = round(coverage, 4)
-        failed_batches = self.validator.bad_set_count
-        step = self.validator.step
-        current_block = self.validator.block
-        netuid = self.validator.config.netuid
-        current_epoch, blocks_until_next_epoch, epoch_start_block = epoch.get_current_epoch_info(current_block, netuid)
-        block_time = 12
-        minutes_to_next_block = blocks_until_next_epoch * block_time / 60
+        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "ts": ts, "status": "ok"})
+        # active_miners = self.validator.active_miners or []
+        # miner_count = len(active_miners)
+        # coverage = len(self.validator.seen_uids) / len(self.validator.total_uids) if self.validator.total_uids else 0.0
+        # coverage = round(coverage, 4)
+        # failed_batches = self.validator.bad_set_count
+        # step = self.validator.step
+        # current_block = self.validator.block
+        # netuid = self.validator.config.netuid
+        # current_epoch, blocks_until_next_epoch, epoch_start_block = epoch.get_current_epoch_info(current_block, netuid)
+        # block_time = 12
+        # minutes_to_next_block = blocks_until_next_epoch * block_time / 60
 
-        return JSONResponse(status_code=200, content={"detail": "version", 
-                                                      "meta_data": v,
-                                                      "ts": ts,
-                                                      "step": step,
-                                                      "miner_count": miner_count,
-                                                      "active_miners": active_miners,
-                                                      "coverage": coverage,
-                                                      "bad_set_count": failed_batches,
-                                                      "epoch_start_block": epoch_start_block,
-                                                      "current_block": current_block,
-                                                      "current_epoch": current_epoch,
-                                                      "blocks_until_next_epoch": blocks_until_next_epoch,
-                                                      "minutes_to_next_epoch": minutes_to_next_block})
+        # return JSONResponse(status_code=200, content={"detail": "version", 
+        #                                               "meta_data": v,
+        #                                               "ts": ts,
+        #                                               "step": step,
+        #                                               "miner_count": miner_count,
+        #                                               "active_miners": active_miners,
+        #                                               "coverage": coverage,
+        #                                               "bad_set_count": failed_batches,
+        #                                               "epoch_start_block": epoch_start_block,
+        #                                               "current_block": current_block,
+        #                                               "current_epoch": current_epoch,
+        #                                               "blocks_until_next_epoch": blocks_until_next_epoch,
+        #                                               "minutes_to_next_epoch": minutes_to_next_block})
     
     
     async def generate_product_rec_localnet(

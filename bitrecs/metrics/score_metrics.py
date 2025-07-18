@@ -299,79 +299,94 @@ def display_epoch_info(validator_instance):
     except Exception as e:
         bt.logging.error(f"Error in epoch info display: {e}")
 
-def display_coverage_info(validator_instance):
-    """Display coverage information for the current validator, accounting for unresponsive UIDs."""
+# def display_coverage_info(validator_instance):
+#     """Display coverage information for the current validator, accounting for unresponsive UIDs."""
+#     try:
+#         seen = getattr(validator_instance, "seen_uids", set())
+#         total = getattr(validator_instance, "total_uids", set())
+#         unresponsive = getattr(validator_instance, "unresponsive_uids", set())
+#         responsive = total - unresponsive if total else set()
+
+#         # Responsive coverage: how many responsive UIDs have been seen
+#         if responsive:
+#             responsive_coverage = len(seen & responsive) / len(responsive)
+#         else:
+#             responsive_coverage = 0.0
+
+#         # Total coverage: how many total UIDs have been seen
+#         total_coverage = len(seen) / len(total) if total else 0.0
+
+#         bt.logging.info(f"\033[1;35m=== COVERAGE INFO ===\033[0m")
+#         bt.logging.info(f"Seen UIDs (attempted): {len(seen)}")
+#         bt.logging.info(f"Total UIDs (metagraph): {len(total)}")
+#         bt.logging.info(f"Unresponsive UIDs: {len(unresponsive)}")
+#         bt.logging.info(f"Responsive UIDs: {len(responsive)}")
+#         bt.logging.info(f"Responsive coverage: {len(seen & responsive)}/{len(responsive)} ({responsive_coverage:.2%})")
+#         bt.logging.info(f"Total coverage (all time): {len(seen)}/{len(total)} ({total_coverage:.2%})")
+
+#         # Shades of green for responsive coverage
+#         if responsive_coverage < 0.10:
+#             bt.logging.warning(f"🟥 Very low responsive coverage: {responsive_coverage:.2%}")
+#         elif responsive_coverage < 0.25:
+#             bt.logging.warning(f"🟧 Low responsive coverage: {responsive_coverage:.2%}")
+#         elif responsive_coverage < 0.5:
+#             bt.logging.warning(f"🟨 Moderate responsive coverage: {responsive_coverage:.2%}")
+#         elif responsive_coverage < 0.7:
+#             bt.logging.info(f"🟩 Good responsive coverage: {responsive_coverage:.2%}")
+#         elif responsive_coverage < 0.85:
+#             bt.logging.info(f"🟩🟩 Very good responsive coverage: {responsive_coverage:.2%}")
+#         else:
+#             bt.logging.info(f"🟩🟩🟩 Excellent responsive coverage: {responsive_coverage:.2%}")
+
+#         bt.logging.info(f" -- Total Coverage Info -- ")
+#         # Shades of green for total coverage
+#         if total_coverage < 0.10:
+#             bt.logging.warning(f"🟥 Very low total coverage: {total_coverage:.2%}")
+#         elif total_coverage < 0.25:
+#             bt.logging.warning(f"🟧 Low total coverage: {total_coverage:.2%}")
+#         elif total_coverage < 0.5:
+#             bt.logging.warning(f"🟨 Moderate total coverage: {total_coverage:.2%}")
+#         elif total_coverage < 0.7:
+#             bt.logging.info(f"🟩 Good total coverage: {total_coverage:.2%}")
+#         elif total_coverage < 0.85:
+#             bt.logging.info(f"🟩🟩 Very good total coverage: {total_coverage:.2%}")
+#         else:
+#             bt.logging.info(f"🟩🟩🟩 Excellent total coverage: {total_coverage:.2%}")
+
+#     except Exception as e:
+#         bt.logging.error(f"Error in coverage info display: {e}")
+
+def display_batch_progress(validator_instance):
+    """Display progress through the current tempo's batches."""
     try:
-        seen = getattr(validator_instance, "seen_uids", set())
-        total = getattr(validator_instance, "total_uids", set())
-        unresponsive = getattr(validator_instance, "unresponsive_uids", set())
-        responsive = total - unresponsive if total else set()
-
-        # Responsive coverage: how many responsive UIDs have been seen
-        if responsive:
-            responsive_coverage = len(seen & responsive) / len(responsive)
-        else:
-            responsive_coverage = 0.0
-
-        # Total coverage: how many total UIDs have been seen
-        total_coverage = len(seen) / len(total) if total else 0.0
-
-        bt.logging.info(f"\033[1;35m=== COVERAGE INFO ===\033[0m")
-        bt.logging.info(f"Seen UIDs (attempted): {len(seen)}")
-        bt.logging.info(f"Total UIDs (metagraph): {len(total)}")
-        bt.logging.info(f"Unresponsive UIDs: {len(unresponsive)}")
-        bt.logging.info(f"Responsive UIDs: {len(responsive)}")
-        bt.logging.info(f"Responsive coverage: {len(seen & responsive)}/{len(responsive)} ({responsive_coverage:.2%})")
-        bt.logging.info(f"Total coverage (all time): {len(seen)}/{len(total)} ({total_coverage:.2%})")
-
-        # Shades of green for responsive coverage
-        if responsive_coverage < 0.10:
-            bt.logging.warning(f"🟥 Very low responsive coverage: {responsive_coverage:.2%}")
-        elif responsive_coverage < 0.25:
-            bt.logging.warning(f"🟧 Low responsive coverage: {responsive_coverage:.2%}")
-        elif responsive_coverage < 0.5:
-            bt.logging.warning(f"🟨 Moderate responsive coverage: {responsive_coverage:.2%}")
-        elif responsive_coverage < 0.7:
-            bt.logging.info(f"🟩 Good responsive coverage: {responsive_coverage:.2%}")
-        elif responsive_coverage < 0.85:
-            bt.logging.info(f"🟩🟩 Very good responsive coverage: {responsive_coverage:.2%}")
-        else:
-            bt.logging.info(f"🟩🟩🟩 Excellent responsive coverage: {responsive_coverage:.2%}")
-
-        bt.logging.info(f" -- Total Coverage Info -- ")
-        # Shades of green for total coverage
-        if total_coverage < 0.10:
-            bt.logging.warning(f"🟥 Very low total coverage: {total_coverage:.2%}")
-        elif total_coverage < 0.25:
-            bt.logging.warning(f"🟧 Low total coverage: {total_coverage:.2%}")
-        elif total_coverage < 0.5:
-            bt.logging.warning(f"🟨 Moderate total coverage: {total_coverage:.2%}")
-        elif total_coverage < 0.7:
-            bt.logging.info(f"🟩 Good total coverage: {total_coverage:.2%}")
-        elif total_coverage < 0.85:
-            bt.logging.info(f"🟩🟩 Very good total coverage: {total_coverage:.2%}")
-        else:
-            bt.logging.info(f"🟩🟩🟩 Excellent total coverage: {total_coverage:.2%}")
-
+        total_batches = len(getattr(validator_instance, "tempo_batches", []))
+        current_index = getattr(validator_instance, "tempo_batch_index", 0)
+        if total_batches == 0:
+            bt.logging.info("No batches initialized for this tempo.")
+            return
+        percent = (current_index / total_batches) * 100
+        bt.logging.info(f"\033[1;36m=== BATCH PROGRESS ===\033[0m")
+        bt.logging.info(f"Processed batches: {current_index}/{total_batches} ({percent:.1f}%)")
     except Exception as e:
-        bt.logging.error(f"Error in coverage info display: {e}")
+        bt.logging.error(f"Error in batch progress display: {e}")
 
 
 def run_complete_score_analysis(validator_instance):
     """Run all score analysis functions in sequence"""
     try:
-        bt.logging.info(f"\033[1;36m=== ENHANCED SCORE ANALYSIS ===\033[0m")
+        bt.logging.info(f"\033[1;36m=== ENHANCED SCORE ANALYSIS ===\033[0m")        
         
-        # Run all analysis functions
         display_normalized_analysis(validator_instance)
         display_ema_insights(validator_instance)
         display_transformation_impact(validator_instance)
         display_score_trends(validator_instance)
-        display_coverage_info(validator_instance)
+        #display_coverage_info(validator_instance)        
         display_epoch_info(validator_instance)
+        display_batch_progress(validator_instance)
         
         bt.logging.info(f"\033[1;36m=== ANALYSIS COMPLETE ===\033[0m")
         
     except Exception as e:
         bt.logging.error(f"Error in complete score analysis: {e}")
         bt.logging.error(traceback.format_exc())
+

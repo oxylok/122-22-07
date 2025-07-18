@@ -24,6 +24,8 @@ import numpy as np
 import traceback
 import requests
 from random import SystemRandom
+
+from bitrecs.utils.epoch import get_current_epoch_info
 safe_random = SystemRandom()
 from dotenv import load_dotenv
 load_dotenv()
@@ -95,121 +97,121 @@ class Validator(BaseValidatorNeuron):
         return
     
 
-    @execute_periodically(timedelta(seconds=CONST.MINER_BATTERY_INTERVAL))
-    async def miner_sync(self):
-        """
-        Checks the miners in the metagraph for connectivity and updates the active miners list.
-        Simple retry logic with MAX_MINER_ATTEMPTS, then gives up until next cycle.
-        """
-        bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
-        bt.logging.trace(f"neuron.sample_size: {self.sample_size}")
-        bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
-        bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")
+    # @execute_periodically(timedelta(seconds=CONST.MINER_BATTERY_INTERVAL))
+    # async def miner_sync(self):
+    #     """
+    #     Checks the miners in the metagraph for connectivity and updates the active miners list.
+    #     Simple retry logic with MAX_MINER_ATTEMPTS, then gives up until next cycle.
+    #     """
+    #     bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
+    #     bt.logging.trace(f"neuron.sample_size: {self.sample_size}")
+    #     bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
+    #     bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")
         
-        if self.should_sync_metagraph():
-            bt.logging.info(f"Resyncing metagraph in miner_sync - current size: {len(self.scores)} at block {self.subtensor.block}")
-            self.resync_metagraph()
-            self.total_uids = set(range(self.metagraph.n.item()))
-            bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
+    #     if self.should_sync_metagraph():
+    #         bt.logging.info(f"Resyncing metagraph in miner_sync - current size: {len(self.scores)} at block {self.subtensor.block}")
+    #         self.resync_metagraph()
+    #         self.total_uids = set(range(self.metagraph.n.item()))
+    #         bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
 
-        # Try MAX_MINER_ATTEMPTS times to find enough miners
-        for attempt in range(CONST.MAX_MINER_FILL_ATTEMPTS):
-            bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_FILL_ATTEMPTS}: Looking for miners...")
+    #     # Try MAX_MINER_ATTEMPTS times to find enough miners
+    #     for attempt in range(CONST.MAX_MINER_FILL_ATTEMPTS):
+    #         bt.logging.info(f"Attempt {attempt + 1}/{CONST.MAX_MINER_FILL_ATTEMPTS}: Looking for miners...")
             
-            # Get and validate miners
-            selected_miners = await self._find_valid_miners()
+    #         # Get and validate miners
+    #         selected_miners = await self._find_valid_miners()
             
-            # Check if we found enough
-            if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
-                self.active_miners = list(set(selected_miners))
-                safe_random.shuffle(self.active_miners)
-                bt.logging.info(f"\033[1;32mSuccess! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
-                coverage = len(self.seen_uids) / len(self.total_uids)
-                bt.logging.info(f"Metagraph UID coverage (attempted): {len(self.seen_uids)}/{len(self.total_uids)} ({coverage:.2%})")
-                return #Good Battery
+    #         # Check if we found enough
+    #         if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
+    #             self.active_miners = list(set(selected_miners))
+    #             safe_random.shuffle(self.active_miners)
+    #             bt.logging.info(f"\033[1;32mSuccess! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
+    #             coverage = len(self.seen_uids) / len(self.total_uids)
+    #             bt.logging.info(f"Metagraph UID coverage (attempted): {len(self.seen_uids)}/{len(self.total_uids)} ({coverage:.2%})")
+    #             return #Good Battery
             
-            # Not enough miners found
-            bt.logging.warning(f"\033[33mOnly found {len(selected_miners)} miners, need {CONST.MIN_ACTIVE_MINERS} to proceed\033[0m")
+    #         # Not enough miners found
+    #         bt.logging.warning(f"\033[33mOnly found {len(selected_miners)} miners, need {CONST.MIN_ACTIVE_MINERS} to proceed\033[0m")
             
-            # Sleep before next attempt (except on last attempt)
-            if attempt < CONST.MAX_MINER_FILL_ATTEMPTS - 1:
-                bt.logging.info("Waiting 5 seconds before retry...")
-                await asyncio.sleep(5)
+    #         # Sleep before next attempt (except on last attempt)
+    #         if attempt < CONST.MAX_MINER_FILL_ATTEMPTS - 1:
+    #             bt.logging.info("Waiting 5 seconds before retry...")
+    #             await asyncio.sleep(5)
     
-        # Failed to find enough miners after all attempts
-        bt.logging.error(f"\033[1;31mFailed to find {CONST.MIN_ACTIVE_MINERS} miners after {CONST.MAX_MINER_FILL_ATTEMPTS} attempts\033[0m")
-        bt.logging.error(f"\033[1;31mWill retry on next periodic cycle in {CONST.MINER_BATTERY_INTERVAL} seconds\033[0m")
-        self.active_miners = []
+    #     # Failed to find enough miners after all attempts
+    #     bt.logging.error(f"\033[1;31mFailed to find {CONST.MIN_ACTIVE_MINERS} miners after {CONST.MAX_MINER_FILL_ATTEMPTS} attempts\033[0m")
+    #     bt.logging.error(f"\033[1;31mWill retry on next periodic cycle in {CONST.MINER_BATTERY_INTERVAL} seconds\033[0m")
+    #     self.active_miners = []
 
 
-    async def _find_valid_miners(self):
-        """
-        Single attempt to find and ping valid miners.
-        Returns list of responsive miner UIDs.
-        """
-        # Get random miners
-        valid_uids, suspect_uids = get_random_miner_uids3(self,
-            k=self.sample_size, 
-            banned_coldkeys=self.BANNED_COLDKEYS,
-            banned_hotkeys=self.BANNED_HOTKEYS,
-            banned_ips=self.BANNED_IPS)
+    # async def _find_valid_miners(self):
+    #     """
+    #     Single attempt to find and ping valid miners.
+    #     Returns list of responsive miner UIDs.
+    #     """
+    #     # Get random miners
+    #     valid_uids, suspect_uids = get_random_miner_uids3(self,
+    #         k=self.sample_size, 
+    #         banned_coldkeys=self.BANNED_COLDKEYS,
+    #         banned_hotkeys=self.BANNED_HOTKEYS,
+    #         banned_ips=self.BANNED_IPS)
         
-        self.suspect_miners = suspect_uids
+    #     self.suspect_miners = suspect_uids
        
-        if not valid_uids:
-            bt.logging.error("No valid miners found for ping test")
-            return []
+    #     if not valid_uids:
+    #         bt.logging.error("No valid miners found for ping test")
+    #         return []
         
-        # Ping miners in batches
-        bt.logging.trace(f"Pinging {len(valid_uids)} valid miners...")
-        start_time = time.perf_counter()
-        selected_miners = []
-        batch_size = CONST.MINER_PING_BATCH_SIZE
+    #     # Ping miners in batches
+    #     bt.logging.trace(f"Pinging {len(valid_uids)} valid miners...")
+    #     start_time = time.perf_counter()
+    #     selected_miners = []
+    #     batch_size = CONST.MINER_PING_BATCH_SIZE
         
-        for i in range(0, len(valid_uids), batch_size):
-            batch_uids = valid_uids[i:i + batch_size]
-            tasks = []
-            for uid in batch_uids:
-                self.seen_uids.add(uid)
-                try:
-                    port = int(self.metagraph.axons[uid].port)
-                    task = asyncio.create_task(self._ping_miner_async(uid, port))
-                    tasks.append((uid, task))
-                except Exception as e:
-                    bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
+    #     for i in range(0, len(valid_uids), batch_size):
+    #         batch_uids = valid_uids[i:i + batch_size]
+    #         tasks = []
+    #         for uid in batch_uids:
+    #             self.seen_uids.add(uid)
+    #             try:
+    #                 port = int(self.metagraph.axons[uid].port)
+    #                 task = asyncio.create_task(self._ping_miner_async(uid, port))
+    #                 tasks.append((uid, task))
+    #             except Exception as e:
+    #                 bt.logging.trace(f"Error creating ping task for uid {uid}: {e}")            
             
-            results = await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)                        
-            for (uid, _), result in zip(tasks, results):
-                if isinstance(result, Exception):
-                    bt.logging.trace(f"ping:{uid}:ERROR - {result}")
-                    self.unresponsive_uids.add(uid)
-                elif result:
-                    bt.logging.trace(f"ping:{uid}:OK")
-                    selected_miners.append(uid)
-                    self.unresponsive_uids.discard(uid)
-                else:
-                    bt.logging.trace(f"ping:{uid}:FALSE")
-                    self.unresponsive_uids.add(uid)
+    #         results = await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)                        
+    #         for (uid, _), result in zip(tasks, results):
+    #             if isinstance(result, Exception):
+    #                 bt.logging.trace(f"ping:{uid}:ERROR - {result}")
+    #                 self.unresponsive_uids.add(uid)
+    #             elif result:
+    #                 bt.logging.trace(f"ping:{uid}:OK")
+    #                 selected_miners.append(uid)
+    #                 self.unresponsive_uids.discard(uid)
+    #             else:
+    #                 bt.logging.trace(f"ping:{uid}:FALSE")
+    #                 self.unresponsive_uids.add(uid)
 
         
-        duration = time.perf_counter() - start_time
-        bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")
+    #     duration = time.perf_counter() - start_time
+    #     bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")
         
-        return selected_miners
+    #     return selected_miners
         
 
-    async def _ping_miner_async(self, uid: int, port: int) -> bool:
-        """Async version of ping_miner_uid"""
-        try:
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: ping_miner_uid(self, uid, port, 3)
-            )
-            return result
-        except Exception as e:
-            bt.logging.trace(f"Ping error for uid {uid}: {e}")
-            return False
+    # async def _ping_miner_async(self, uid: int, port: int) -> bool:
+    #     """Async version of ping_miner_uid"""
+    #     try:
+    #         loop = asyncio.get_event_loop()
+    #         result = await loop.run_in_executor(
+    #             None,
+    #             lambda: ping_miner_uid(self, uid, port, 3)
+    #         )
+    #         return result
+    #     except Exception as e:
+    #         bt.logging.trace(f"Ping error for uid {uid}: {e}")
+    #         return False
     
 
     @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
@@ -411,6 +413,34 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"cooldown_sync Exception: {e}")
       
 
+    
+    @execute_periodically(timedelta(seconds=60))
+    async def tempo_sync(self):
+        """
+        Periodically checks if a new tempo has started and resets miner batches.
+        """
+
+        def get_current_tempo(self):
+            current_block = self.block
+            netuid = self.config.netuid
+            current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
+            return current_tempo
+        
+        bt.logging.trace(f"Tempo sync ran at {int(time.time())}")
+        if self.should_sync_metagraph():
+            bt.logging.info(f"Resyncing metagraph in tempo_sync - current size: {len(self.total_uids)} at block {self.block}")
+            self.resync_metagraph()
+            self.update_total_uids()
+            bt.logging.info(f"Metagraph resynced - new size: {len(self.total_uids)}")
+
+
+        current_tempo = get_current_tempo()
+        if self.last_tempo != current_tempo:
+            self.last_tempo = current_tempo
+            self.start_new_tempo()
+            bt.logging.info(f"\033[32mNew tempo started: {current_tempo}. Miner batches reset. \033[0m")
+    
+
 
 async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
@@ -418,11 +448,12 @@ async def main():
         start_time = time.time()      
         while True:
             tasks = [
+                asyncio.create_task(validator.tempo_sync()),
                 asyncio.create_task(validator.cooldown_sync()),
                 asyncio.create_task(validator.version_sync()),
-                asyncio.create_task(validator.miner_sync()),
-                asyncio.create_task(validator.action_sync()),
-                asyncio.create_task(validator.response_sync())                
+                #asyncio.create_task(validator.miner_sync()),
+                #asyncio.create_task(validator.action_sync()),
+                asyncio.create_task(validator.response_sync())
             ]                    
             if validator.config.logging.trace and CONST.SCORE_DISPLAY_ENABLED:
                 tasks.append(asyncio.create_task(validator.score_sync()))

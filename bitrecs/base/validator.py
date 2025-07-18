@@ -152,11 +152,24 @@ class BaseValidatorNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
-        self.active_miners: List[int] = []
+        #self.active_miners: List[int] = []
         self.suspect_miners: List[int] = []
-        self.seen_uids = set()
-        self.unresponsive_uids = set()
-        self.total_uids = set(range(self.metagraph.n.item()))
+        #self.seen_uids = set()
+        #self.unresponsive_uids = set()
+        
+        self.exclusion_uids = set()
+        self.exclusion_uids.add(self.uid)
+        #testnet vals
+        self.exclusion_uids.add(1)
+        self.exclusion_uids.add(8)
+        self.exclusion_uids.add(34)
+
+        self.update_total_uids()
+        # self.total_uids = set(
+        #     uid for uid in range(self.metagraph.n.item())
+        #     if uid not in self.exclusion_uids
+        # )
+
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
@@ -169,6 +182,8 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.network != "mainnet": #Testing override
             self.min_set_size = CONST.MIN_ACTIVE_MINERS
         self.bad_set_count = 0
+        self.last_tempo = None
+        
         
         write_node_info(
             network=self.network,
@@ -203,6 +218,31 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.info(f"Validator Initialized at block: {self.block}")
 
+    def update_total_uids(self):
+        """ Update the total_uids set based on the current metagraph. """        
+        self.total_uids = set(
+            uid for uid in range(self.metagraph.n.item())
+            if uid not in self.exclusion_uids
+        )
+        bt.logging.info(f"Total UIDs updated: {len(self.total_uids)}")
+
+    def start_new_tempo(self):
+        all_miners = list(self.total_uids)
+        safe_random.shuffle(all_miners)
+        batch_size = 6
+        self.tempo_batches = [
+            all_miners[i:i+batch_size]
+            for i in range(0, len(all_miners), batch_size)
+        ]
+        self.tempo_batch_index = 0
+
+    ##todo add thread lock
+    def get_next_batch(self) -> List[int]:
+        if not hasattr(self, 'tempo_batches') or not self.tempo_batches:
+            self.start_new_tempo()
+        batch = self.tempo_batches[self.tempo_batch_index]
+        self.tempo_batch_index = (self.tempo_batch_index + 1) % len(self.tempo_batches)
+        return batch
 
     def serve_axon(self):
         """Serve axon to enable external connections."""
@@ -365,7 +405,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        chosen_uids : list[int] = self.active_miners
+                        #chosen_uids : list[int] = self.active_miners
+                        chosen_uids : list[int] = self.get_next_batch() #Get next batch of miners
                         if len(chosen_uids) < CONST.MIN_ACTIVE_MINERS:
                             bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
@@ -588,10 +629,10 @@ class BaseValidatorNeuron(BaseNeuron):
             return
         
         # Lets not update until we have enough active miners to prevent normalizing over varying set lengths
-        if len(self.active_miners) < self.min_set_size:
-            bt.logging.warning("Not enough active miners to update weights. Skipping.")
-            bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
-            return
+        # if len(self.active_miners) < self.min_set_size:
+        #     bt.logging.warning("Not enough active miners to update weights. Skipping.")
+        #     bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
+        #     return
 
         # Use normalized scores for weights
         raw_weights = self.get_normalized_scores()
