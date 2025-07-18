@@ -48,8 +48,7 @@ from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.distance import (
-    display_rec_matrix,
-    display_rec_matrix_numpy,
+    display_rec_matrix,    
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
@@ -232,23 +231,24 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         bt.logging.info(f"Total UIDs updated: {len(self.total_uids)}")
 
-    def start_new_tempo(self):
+    async def start_new_tempo(self):
         all_miners = list(self.total_uids)
         safe_random.shuffle(all_miners)
         batch_size = 8
-        self.tempo_batches = [
-            all_miners[i:i+batch_size]
-            for i in range(0, len(all_miners), batch_size)
-        ]
-        self.tempo_batch_index = 0
+        async with self.lock:
+            self.tempo_batches = [
+                all_miners[i:i+batch_size]
+                for i in range(0, len(all_miners), batch_size)
+            ]
+            self.tempo_batch_index = 0
 
-    ##todo add thread lock
-    def get_next_batch(self) -> List[int]:
-        if not hasattr(self, 'tempo_batches') or not self.tempo_batches:
-            self.start_new_tempo()
-        batch = self.tempo_batches[self.tempo_batch_index]
-        self.tempo_batch_index = (self.tempo_batch_index + 1) % len(self.tempo_batches)
-        return batch
+    async def get_next_batch(self) -> List[int]:
+        async with self.lock:
+            if not hasattr(self, 'tempo_batches') or not self.tempo_batches:
+                await self.start_new_tempo()
+            batch = self.tempo_batches[self.tempo_batch_index]
+            self.tempo_batch_index = (self.tempo_batch_index + 1) % len(self.tempo_batches)
+            return batch
 
     def serve_axon(self):
         """Serve axon to enable external connections."""
@@ -325,16 +325,15 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.warning(f"\033[33mNo similar recs found in this round step: {self.step} \033[0m")
                 return
             if self.config.logging.trace:
-                most_similar_indices = [valid_requests.index(req) for req in most_similar]
-                #matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)
+                most_similar_indices = [valid_requests.index(req) for req in most_similar]                
                 matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices)
                 bt.logging.trace(matrix)
 
             for sim in most_similar:
                 #bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
                 bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
-                skus = rec_list_to_set(sim.results)
-                bt.logging.trace(f"SKUS: {skus or '[ERROR]'}")
+                #skus = rec_list_to_set(sim.results)
+                #bt.logging.trace(f"SKUS: {skus or '[ERROR]'}")
 
             et = time.perf_counter()
             diff = et - st

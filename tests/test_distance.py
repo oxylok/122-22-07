@@ -22,8 +22,7 @@ from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.validator.reward import validate_result_schema
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (        
-    display_rec_matrix,
-    display_rec_matrix_numpy,
+    display_rec_matrix,    
     select_most_similar_bitrecs,
     select_most_similar_sets,
     calculate_jaccard_distance,
@@ -553,8 +552,8 @@ def test_local_llm_base_config_jaccard():
     # matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     # print(matrix)
 
-    matrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar)
-    print(matrix)
+    # matrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar)
+    # print(matrix)
 
     # for s in ColorScheme:
     #     print("----------------------------------------------------------------------------")
