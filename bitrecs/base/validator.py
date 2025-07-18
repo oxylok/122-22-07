@@ -165,6 +165,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.min_set_size = self.sample_size
         if self.network != "mainnet": #Testing override
             self.min_set_size = CONST.MIN_ACTIVE_MINERS
+        self.bad_set_count = 0
         
         write_node_info(
             network=self.network,
@@ -408,11 +409,14 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
-                            continue
+                            continue                        
                         
                         failure_rate = np.sum(rewards == 0) / len(rewards)
                         if failure_rate > CONST.BATCH_FAILURE_THRESHOLD:
-                            bt.logging.error(f"High failure rate ({failure_rate:.2%}), treshold {CONST.BATCH_FAILURE_THRESHOLD:.2%} - skipping score update for this batch.")
+                            self.bad_set_count += 1
+                            bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
+                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
+                            #self.update_successful_scores(rewards, chosen_uids)
                             synapse_with_event.event.set()
                             continue
                         
@@ -724,6 +728,19 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.debug(f"Decayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f}")
 
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+
+
+    def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
+        """
+        On batch failure, still reward those that performed
+        """
+        default_alpha = self.config.neuron.moving_average_alpha
+        rewards = np.asarray(rewards, dtype=np.float32)
+        uids_array = np.array(uids, dtype=np.int64)
+
+        for i, uid in enumerate(uids_array):
+            if rewards[i] > 0:
+                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]
 
     
     def get_normalized_scores(self):

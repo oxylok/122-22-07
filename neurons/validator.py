@@ -123,6 +123,7 @@ class Validator(BaseValidatorNeuron):
                 self.active_miners = list(set(selected_miners))
                 safe_random.shuffle(self.active_miners)
                 bt.logging.info(f"\033[1;32m Success! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
+                self.bad_set_count = 0
                 return
             
             # Not enough miners found
