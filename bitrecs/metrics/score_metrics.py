@@ -1,6 +1,7 @@
 import traceback
 import bittensor as bt
 import numpy as np
+from bitrecs.utils import epoch
 
 def display_normalized_analysis(validator_instance):
     """Display normalized scores that are actually used for weights"""
@@ -276,6 +277,24 @@ def check_score_health(validator_instance, stats, max_min_ratio):
     except Exception as e:
         bt.logging.error(f"Error in score health check: {e}")
 
+def display_epoch_info(validator_instance):
+    """Display epoch information for the current block"""
+    try:
+        current_block = validator_instance.block
+        netuid = validator_instance.config.netuid
+        
+        current_epoch, blocks_until_next_epoch, epoch_start_block = epoch.get_current_epoch_info(current_block, netuid)
+        
+        bt.logging.info(f"\033[1;34m=== EPOCH INFO ===\033[0m")
+        bt.logging.info(f"NetUID: {netuid}")
+        bt.logging.info(f"Current block: {current_block}")        
+        bt.logging.info(f"Current epoch: {current_epoch}")
+        bt.logging.info(f"Blocks until next epoch: {blocks_until_next_epoch}")
+        bt.logging.info(f"Epoch start block: {epoch_start_block}")
+        
+    except Exception as e:
+        bt.logging.error(f"Error in epoch info display: {e}")
+
 def run_complete_score_analysis(validator_instance):
     """Run all score analysis functions in sequence"""
     try:
@@ -286,6 +305,7 @@ def run_complete_score_analysis(validator_instance):
         display_ema_insights(validator_instance)
         display_transformation_impact(validator_instance)
         display_score_trends(validator_instance)
+        display_epoch_info(validator_instance)
         
         bt.logging.info(f"\033[1;36m=== ANALYSIS COMPLETE ===\033[0m")
         

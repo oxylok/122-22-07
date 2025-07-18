@@ -343,7 +343,7 @@ class Validator(BaseValidatorNeuron):
             # Keep only last 20 snapshots
             if len(self.score_history) > 20:
                 self.score_history = self.score_history[-20:]            
-          
+            
             run_complete_score_analysis(self)
             
             # Enhanced health checks
