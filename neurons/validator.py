@@ -434,7 +434,6 @@ class Validator(BaseValidatorNeuron):
             self.update_total_uids()
             bt.logging.info(f"Metagraph resynced - new size: {len(self.total_uids)}")
 
-
         current_tempo = get_current_tempo(self)
         if self.last_tempo != current_tempo:
             self.last_tempo = current_tempo
