@@ -299,6 +299,32 @@ def display_epoch_info(validator_instance):
     except Exception as e:
         bt.logging.error(f"Error in epoch info display: {e}")
 
+def display_coverage_info(validator_instance):
+    """Display coverage information for the current validator"""
+    try:
+        
+        coverage = len(validator_instance.covered_uids) / len(validator_instance.total_uids)        
+        bt.logging.info(f"\033[1;35m=== COVERAGE INFO ===\033[0m")
+        bt.logging.info(f"Covered UIDs: {len(validator_instance.covered_uids)}")
+        bt.logging.info(f"Total UIDs: {len(validator_instance.total_uids)}")
+        bt.logging.info(f"Coverage: {coverage:.2%}")
+        if coverage < 0.10:
+            bt.logging.warning(f"🟥 Very low coverage: {coverage:.2%}")
+        elif coverage < 0.25:
+            bt.logging.warning(f"🟧 Low coverage: {coverage:.2%}")
+        elif coverage < 0.5:
+            bt.logging.warning(f"🟨 Moderate coverage: {coverage:.2%}")
+        elif coverage < 0.7:
+            bt.logging.info(f"🟦 Good coverage: {coverage:.2%}")
+        elif coverage < 0.85:
+            bt.logging.info(f"🟪 Very good coverage: {coverage:.2%}")
+        else:
+            bt.logging.info(f"🟩 Excellent coverage: {coverage:.2%}")
+        
+    except Exception as e:
+        bt.logging.error(f"Error in coverage info display: {e}")
+
+
 def run_complete_score_analysis(validator_instance):
     """Run all score analysis functions in sequence"""
     try:
@@ -309,6 +335,7 @@ def run_complete_score_analysis(validator_instance):
         display_ema_insights(validator_instance)
         display_transformation_impact(validator_instance)
         display_score_trends(validator_instance)
+        display_coverage_info(validator_instance)
         display_epoch_info(validator_instance)
         
         bt.logging.info(f"\033[1;36m=== ANALYSIS COMPLETE ===\033[0m")
