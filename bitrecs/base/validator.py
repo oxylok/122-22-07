@@ -160,6 +160,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
         #testnet vals
+        self.exclusion_uids.add(0)
         self.exclusion_uids.add(1)
         self.exclusion_uids.add(8)
         self.exclusion_uids.add(34)
