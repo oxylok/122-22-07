@@ -461,9 +461,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL RESULT: {elected}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key}\033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]}\033[0m")
                         if consensus_bonus_applied:
                             bt.logging.info(f"\033[1;32mBONUS: {CONSENSUS_BONUS_MULTIPLIER}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]}\033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
