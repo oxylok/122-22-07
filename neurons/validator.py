@@ -438,7 +438,7 @@ class Validator(BaseValidatorNeuron):
         current_tempo = get_current_tempo(self)
         if self.last_tempo != current_tempo:
             self.last_tempo = current_tempo
-            self.start_new_tempo()
+            await self.start_new_tempo()
             bt.logging.info(f"\033[1;32mmNew tempo started: {current_tempo} - Miner batches reset.\033[0m")
     
 
