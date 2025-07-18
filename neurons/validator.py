@@ -310,6 +310,7 @@ class Validator(BaseValidatorNeuron):
     async def tempo_sync(self):
         """
         Periodically checks if a new tempo has started and resets miner batches.
+        
         """
 
         def get_current_tempo(self):
@@ -330,7 +331,7 @@ class Validator(BaseValidatorNeuron):
         if self.last_tempo != current_tempo:
             self.last_tempo = current_tempo
             await self.start_new_tempo()
-            bt.logging.info(f"\033[1;32mmNew tempo started: {current_tempo} - Miner batches reset.\033[0m")
+            bt.logging.info(f"\033[1;32mNew tempo started: {current_tempo} - Miner batches reset\033[0m")
     
 
 
