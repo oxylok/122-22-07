@@ -290,11 +290,11 @@ def display_epoch_info(validator_instance):
         
         bt.logging.info(f"\033[1;34m=== EPOCH INFO ===\033[0m")
         bt.logging.info(f"NetUID: {netuid}")
+        bt.logging.info(f"Epoch start block: {epoch_start_block}")
         bt.logging.info(f"Current block: {current_block}")
         bt.logging.info(f"Current epoch: {current_epoch}")
         bt.logging.info(f"Blocks until next epoch: {blocks_until_next_epoch}")
         bt.logging.info(f"Minutes until next epoch: {minutes_to_next_block:.1f}")
-        bt.logging.info(f"Epoch start block: {epoch_start_block}")
         
     except Exception as e:
         bt.logging.error(f"Error in epoch info display: {e}")
