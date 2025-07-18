@@ -224,7 +224,7 @@ class BaseValidatorNeuron(BaseNeuron):
     def update_total_uids(self):
         """ Update the total_uids set based on the current metagraph. """     
         
-        uids = get_all_miner_uids(self)
+        uids, cooldown_uids = get_all_miner_uids(self)
         self.total_uids = set(
             uid for uid in uids
             if uid not in self.exclusion_uids
