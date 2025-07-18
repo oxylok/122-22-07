@@ -6,6 +6,8 @@ import hashlib
 import threading
 import traceback
 import bittensor as bt
+from dotenv import load_dotenv
+load_dotenv()
 from dataclasses import asdict
 from typing import Callable
 from functools import partial
@@ -13,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request, APIRouter, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.utils import constants as CONST
+from bitrecs.utils import constants as CONST, epoch
 from bitrecs.commerce.product import ProductFactory
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.api.api_core import filter_allowed_ips, limiter
@@ -25,8 +27,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.exceptions import InvalidSignature
 from uvicorn.config import Config
 from uvicorn.server import Server
-from dotenv import load_dotenv
-load_dotenv()
 
 ForwardFn = Callable[[BitrecsRequest], BitrecsRequest]
 
@@ -197,13 +197,20 @@ class ApiServer:
         ts = int(time.time())
         if not self.validator.local_metadata:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
-            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "error"})
+            return JSONResponse(status_code=500, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "meta_data error"})
         v = self.validator.local_metadata.to_dict()
         active_miners = self.validator.active_miners or []
         miner_count = len(active_miners)
         coverage = len(self.validator.covered_uids) / len(self.validator.total_uids)
+        coverage = round(coverage, 4)
         failed_batches = self.validator.bad_set_count
         step = self.validator.step
+        current_block = self.validator.block
+        netuid = self.validator.config.netuid
+        current_epoch, blocks_until_next_epoch, epoch_start_block = epoch.get_current_epoch_info(current_block, netuid)
+        block_time = 12
+        minutes_to_next_block = blocks_until_next_epoch * block_time / 60
+
         return JSONResponse(status_code=200, content={"detail": "version", 
                                                       "meta_data": v,
                                                       "ts": ts,
@@ -211,7 +218,13 @@ class ApiServer:
                                                       "miner_count": miner_count,
                                                       "active_miners": active_miners,
                                                       "coverage": coverage,
-                                                      "bad_set_count": failed_batches})
+                                                      "bad_set_count": failed_batches,
+                                                      "epoch_start_block": epoch_start_block,
+                                                      "current_block": current_block,
+                                                      "current_epoch": current_epoch,
+                                                      "blocks_until_next_epoch": blocks_until_next_epoch,
+                                                      "minutes_to_next_epoch": minutes_to_next_block})
+    
     
     async def generate_product_rec_localnet(
             self, 
