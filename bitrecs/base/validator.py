@@ -234,7 +234,7 @@ class BaseValidatorNeuron(BaseNeuron):
     def start_new_tempo(self):
         all_miners = list(self.total_uids)
         safe_random.shuffle(all_miners)
-        batch_size = 6
+        batch_size = 8
         self.tempo_batches = [
             all_miners[i:i+batch_size]
             for i in range(0, len(all_miners), batch_size)
