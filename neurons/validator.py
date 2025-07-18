@@ -125,10 +125,15 @@ class Validator(BaseValidatorNeuron):
                 safe_random.shuffle(self.active_miners)
                 bt.logging.info(f"\033[1;32mSuccess! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")                
                 self.covered_uids.update(selected_miners)
-                coverage = len(self.covered_uids) / len(self.total_uids)
-                bt.logging.info(f"\033[32mMiner UID coverage: {len(self.covered_uids)}/{len(self.total_uids)} ({coverage:.2%})\033[0m")
-                #self.bad_set_count = 0
-                return
+                responsive_uids = self.total_uids - self.unresponsive_uids
+                if responsive_uids:
+                    coverage = len(self.covered_uids & responsive_uids) / len(responsive_uids)
+                else:
+                    coverage = 0.0
+                bt.logging.info(f"\033[32mMiner UID coverage: {len(self.covered_uids & responsive_uids)}/{len(responsive_uids)} ({coverage:.2%})\033[0m")
+                total_coverage = len(self.covered_uids) / len(self.total_uids)
+                bt.logging.info(f"Total UID coverage (all time): {len(self.covered_uids)}/{len(self.total_uids)} ({total_coverage:.2%})")                
+                return #Good Battery
             
             # Not enough miners found
             bt.logging.warning(f"\033[33mOnly found {len(selected_miners)} miners, need {CONST.MIN_ACTIVE_MINERS} to proceed\033[0m")
@@ -186,8 +191,11 @@ class Validator(BaseValidatorNeuron):
                 elif result:
                     bt.logging.trace(f"ping:{uid}:OK")
                     selected_miners.append(uid)
+                    self.unresponsive_uids.remove(uid)
                 else:
+                    self.unresponsive_uids.add(uid)
                     bt.logging.trace(f"ping:{uid}:FALSE")
+
         
         duration = time.perf_counter() - start_time
         bt.logging.trace(f"Ping test completed in {duration:.2f} seconds")

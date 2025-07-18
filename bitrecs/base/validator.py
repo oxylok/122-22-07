@@ -155,6 +155,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.active_miners: List[int] = []
         self.suspect_miners: List[int] = []
         self.covered_uids = set()
+        self.unresponsive_uids = set()
         self.total_uids = set(range(self.metagraph.n.item()))  # All possible UIDs in the metagraph
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
