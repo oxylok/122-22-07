@@ -371,32 +371,26 @@ def display_batch_progress(validator_instance):
         bt.logging.error(f"Error in batch progress display: {e}")
 
 
-def display_score_graph(validator_instance):
-    import numpy as np
+def display_score_histogram(validator_instance, bins=20, width=60):
+    """
+    Display an ASCII histogram of node scores in the terminal/logs.
+    """
+    scores = np.array(validator_instance.scores)
+    if len(scores) == 0:
+        bt.logging.trace("No scores to display.")
+        return
 
-    def plot_ascii(array, height=20, width=80):
-        min_val, max_val = np.min(array), np.max(array)
-        if max_val == min_val:
-            normalized = np.zeros_like(array)
-        else:
-            normalized = (array - min_val) / (max_val - min_val) * (height - 1)
-        normalized = normalized.astype(int)
+    hist, bin_edges = np.histogram(scores, bins=bins)
+    max_count = np.max(hist)
+    bt.logging.trace(f"\033[1;36m=== SCORE HISTOGRAM ({bins} bins) ===\033[0m")
+    for i in range(bins):
+        left = bin_edges[i]
+        right = bin_edges[i+1]
+        count = hist[i]
+        bar = '█' * int(width * count / max_count) if max_count > 0 else ''
+        bt.logging.trace(f"{left:7.3f} - {right:7.3f} | {bar} {count}")
 
-        grid = [' ' * width for _ in range(height)]
-        for i, val in enumerate(array):
-            x = int(i / 256 * (width - 1))
-            y = height - 1 - normalized[i]
-            grid[y] = grid[y][:x] + '█' + grid[y][x+1:]
-
-        # Collect lines into a single string
-        graph_str = "\n".join(grid)
-        graph_str += f"\nMin: {min_val:.2f}, Max: {max_val:.2f}"
-        return graph_str
-
-    array = validator_instance.scores
-    graph_str = plot_ascii(array)
-    bt.logging.info("\n" + graph_str)
-
+    bt.logging.trace(f"Min: {scores.min():.4f}, Max: {scores.max():.4f}, Mean: {scores.mean():.4f}, Std: {scores.std():.4f}")
 
 
 
@@ -412,7 +406,7 @@ def run_complete_score_analysis(validator_instance):
         #display_coverage_info(validator_instance)        
         display_epoch_info(validator_instance)
         display_batch_progress(validator_instance)
-        display_score_graph(validator_instance)
+        display_score_histogram(validator_instance)
         
         bt.logging.info(f"\033[1;36m=== ANALYSIS COMPLETE ===\033[0m")
         
