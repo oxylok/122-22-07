@@ -326,9 +326,13 @@ class BaseValidatorNeuron(BaseNeuron):
             if self.config.logging.trace:
                 most_similar_indices = [valid_requests.index(req) for req in most_similar]
                 matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)
-                bt.logging.trace(matrix)
+                bt.logging.trace(matrix)             
+
             for sim in most_similar:
+                #bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
                 bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
+                skus = rec_list_to_set(sim.results)
+                bt.logging.trace(f"SKUS: {skus or '[ERROR]'}")
 
             et = time.perf_counter()
             diff = et - st
@@ -497,7 +501,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue
                         
                         if selected_rec is None:
-                            bt.logging.error("\033[1;31mNo consensus rec found skipping this request \033[0m")
+                            bt.logging.error("\033[1;31mSkipped Scoring - no consensus rec in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
                     
