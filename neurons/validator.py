@@ -423,6 +423,7 @@ class Validator(BaseValidatorNeuron):
         def get_current_tempo(self):
             current_block = self.block
             netuid = self.config.netuid
+            bt.logging.trace(f"Getting current tempo for block {current_block} and netuid {netuid}")
             current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
             return current_tempo
         
@@ -434,7 +435,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Metagraph resynced - new size: {len(self.total_uids)}")
 
 
-        current_tempo = get_current_tempo()
+        current_tempo = get_current_tempo(self)
         if self.last_tempo != current_tempo:
             self.last_tempo = current_tempo
             self.start_new_tempo()
