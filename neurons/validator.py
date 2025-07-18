@@ -122,7 +122,10 @@ class Validator(BaseValidatorNeuron):
             if len(selected_miners) >= CONST.MIN_ACTIVE_MINERS:
                 self.active_miners = list(set(selected_miners))
                 safe_random.shuffle(self.active_miners)
-                bt.logging.info(f"\033[1;32m Success! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")
+                bt.logging.info(f"\033[1;32m Success! Found {len(self.active_miners)} active miners: {self.active_miners} \033[0m")                
+                self.covered_uids.update(selected_miners)
+                coverage = len(self.covered_uids) / len(self.total_uids)
+                bt.logging.info(f"\033[32mMiner UID coverage: {len(self.covered_uids)}/{len(self.total_uids)} ({coverage:.2%})\033[0m")
                 self.bad_set_count = 0
                 return
             
