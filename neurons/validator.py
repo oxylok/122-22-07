@@ -109,6 +109,7 @@ class Validator(BaseValidatorNeuron):
         if self.should_sync_metagraph():
             bt.logging.info(f"Resyncing metagraph in miner_sync - current size: {len(self.scores)} at block {self.subtensor.block}")
             self.resync_metagraph()
+            self.total_uids = set(range(self.metagraph.n.item()))
             bt.logging.info(f"Metagraph resynced - new size: {len(self.scores)}")
 
         # Try MAX_MINER_ATTEMPTS times to find enough miners
@@ -126,7 +127,7 @@ class Validator(BaseValidatorNeuron):
                 self.covered_uids.update(selected_miners)
                 coverage = len(self.covered_uids) / len(self.total_uids)
                 bt.logging.info(f"\033[32mMiner UID coverage: {len(self.covered_uids)}/{len(self.total_uids)} ({coverage:.2%})\033[0m")
-                self.bad_set_count = 0
+                #self.bad_set_count = 0
                 return
             
             # Not enough miners found

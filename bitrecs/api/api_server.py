@@ -188,20 +188,30 @@ class ApiServer:
     
     async def ping(self, request: Request):
         bt.logging.info(f"\033[1;32m API Server ping \033[0m")
-        st = int(time.time())        
-        return JSONResponse(status_code=200, content={"detail": "pong", "st": st})
+        ts = int(time.time())        
+        return JSONResponse(status_code=200, content={"detail": "pong", "ts": ts})
     
     
     async def version(self, request: Request):
         bt.logging.info(f"\033[1;32m API Server version \033[0m")
-        st = int(time.time())
+        ts = int(time.time())
         if not self.validator.local_metadata:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
-            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "st": st})
+            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "ts": ts})
         v = self.validator.local_metadata.to_dict()
-        miner_count = len(self.validator.active_miners)
-        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "st": st, "miner_count": miner_count})
-    
+        active_miners = self.validator.active_miners or []
+        miner_count = len(active_miners)
+        coverage = len(self.validator.covered_uids) / len(self.validator.total_uids)
+        failed_batches = self.validator.bad_set_count
+        step = self.validator.step
+        return JSONResponse(status_code=200, content={"detail": "version", 
+                                                      "meta_data": v,
+                                                      "st": ts,
+                                                      "step": step,
+                                                      "miner_count": miner_count,
+                                                      "active_miners": active_miners,
+                                                      "coverage": coverage,
+                                                      "bad_set_count": failed_batches})
     
     async def generate_product_rec_localnet(
             self, 
