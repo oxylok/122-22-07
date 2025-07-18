@@ -302,9 +302,6 @@ def display_epoch_info(validator_instance):
 def display_coverage_info(validator_instance):
     """Display coverage information for the current validator, accounting for unresponsive UIDs."""
     try:
-        if validator_instance.first_sync:
-            return
-        
         seen = getattr(validator_instance, "seen_uids", set())
         total = getattr(validator_instance, "total_uids", set())
         unresponsive = getattr(validator_instance, "unresponsive_uids", set())
@@ -327,7 +324,7 @@ def display_coverage_info(validator_instance):
         bt.logging.info(f"Responsive coverage: {len(seen & responsive)}/{len(responsive)} ({responsive_coverage:.2%})")
         bt.logging.info(f"Total coverage (all time): {len(seen)}/{len(total)} ({total_coverage:.2%})")
 
-        # Scalable Unicode symbols for responsive coverage
+        # Shades of green for responsive coverage
         if responsive_coverage < 0.10:
             bt.logging.warning(f"🟥 Very low responsive coverage: {responsive_coverage:.2%}")
         elif responsive_coverage < 0.25:
@@ -337,11 +334,12 @@ def display_coverage_info(validator_instance):
         elif responsive_coverage < 0.7:
             bt.logging.info(f"🟩 Good responsive coverage: {responsive_coverage:.2%}")
         elif responsive_coverage < 0.85:
-            bt.logging.info(f"🟦 Very good responsive coverage: {responsive_coverage:.2%}")
+            bt.logging.info(f"🟩🟩 Very good responsive coverage: {responsive_coverage:.2%}")
         else:
-            bt.logging.info(f"🟪 Excellent responsive coverage: {responsive_coverage:.2%}")
+            bt.logging.info(f"🟩🟩🟩 Excellent responsive coverage: {responsive_coverage:.2%}")
 
         bt.logging.info(f" -- Total Coverage Info -- ")
+        # Shades of green for total coverage
         if total_coverage < 0.10:
             bt.logging.warning(f"🟥 Very low total coverage: {total_coverage:.2%}")
         elif total_coverage < 0.25:
@@ -351,9 +349,9 @@ def display_coverage_info(validator_instance):
         elif total_coverage < 0.7:
             bt.logging.info(f"🟩 Good total coverage: {total_coverage:.2%}")
         elif total_coverage < 0.85:
-            bt.logging.info(f"🟦 Very good total coverage: {total_coverage:.2%}")
+            bt.logging.info(f"🟩🟩 Very good total coverage: {total_coverage:.2%}")
         else:
-            bt.logging.info(f"🟪 Excellent total coverage: {total_coverage:.2%}")
+            bt.logging.info(f"🟩🟩🟩 Excellent total coverage: {total_coverage:.2%}")
 
     except Exception as e:
         bt.logging.error(f"Error in coverage info display: {e}")

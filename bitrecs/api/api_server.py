@@ -201,7 +201,7 @@ class ApiServer:
         v = self.validator.local_metadata.to_dict()
         active_miners = self.validator.active_miners or []
         miner_count = len(active_miners)
-        coverage = len(self.validator.covered_uids) / len(self.validator.total_uids)
+        coverage = len(self.validator.seen_uids) / len(self.validator.total_uids) if self.validator.total_uids else 0.0
         coverage = round(coverage, 4)
         failed_batches = self.validator.bad_set_count
         step = self.validator.step
