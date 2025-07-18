@@ -365,7 +365,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        chosen_uids : list[int] = self.active_miners                     
+                        chosen_uids : list[int] = self.active_miners
                         if len(chosen_uids) < CONST.MIN_ACTIVE_MINERS:
                             bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
@@ -373,7 +373,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
 
                         chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
-                        api_request = synapse_with_event.input_synapse                        
+                        api_request = synapse_with_event.input_synapse
                         
                         st = time.perf_counter()
                         responses = await self.dendrite.forward(
