@@ -154,12 +154,11 @@ class BaseValidatorNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
-        self.suspect_miners: List[int] = []
-        #self.seen_uids = set()
-        #self.unresponsive_uids = set()
+              
         self.total_uids = set()
         self.batch_seen_uids = set()
         self.batch_orphan_uids = set()
+        self.suspect_miners: List[int] = []
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
         
@@ -167,13 +166,15 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.network == "testnet":
             self.exclusion_uids.add(1)
             self.exclusion_uids.add(8)
-            self.exclusion_uids.add(34)        
+            self.exclusion_uids.add(34)
        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
         self.sample_size = self.config.neuron.sample_size       
         self.bad_set_count = 0
+
         self.last_tempo = None
+        self.tempo_batch_index = 0
         self.batches_completed = 0
         self.update_total_uids()
         
@@ -413,7 +414,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
                         self.batch_seen_uids.update(chosen_uids)
-                        bt.logging.trace(f"Batch seen uids after update: {len(self.batch_seen_uids)} / {len(self.total_uids)}")
+                        #bt.logging.trace(f"Batch seen uids after update: {len(self.batch_seen_uids)} / {len(self.total_uids)}")
 
                         chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
                         api_request = synapse_with_event.input_synapse
