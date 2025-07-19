@@ -636,9 +636,10 @@ class BaseValidatorNeuron(BaseNeuron):
         
         if np.all(self.scores == 0):
             bt.logging.warning("Scores are all zero.")
-            return        
+            return
       
         coverage = (len(self.batch_seen_uids) / len(self.total_uids)) * 100 if len(self.total_uids) > 0 else 0
+        bt.logging.trace(f"\033[32mCoverage: {coverage:.2f}% \033[0m")
         min_coverage = 0.9
         if coverage < min_coverage:
             bt.logging.warning(f"\033[3;3mUpdating premature weights! \033[0m")
