@@ -51,7 +51,11 @@ from bitrecs.utils.distance import (
     select_most_similar_bitrecs
 )
 from bitrecs.utils.uids import get_all_miner_uids
-from bitrecs.validator.reward import CONSENSUS_BONUS_MULTIPLIER, SUSPECT_MINER_DECAY, get_rewards
+from bitrecs.validator.reward import (
+    BASE_REWARD, 
+    CONSENSUS_BONUS_MULTIPLIER, 
+    SUSPECT_MINER_DECAY, 
+    get_rewards)
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
     log_miner_responses_to_sql,
@@ -798,30 +802,23 @@ class BaseValidatorNeuron(BaseNeuron):
             if rewards[i] > 0:
                 self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]
 
+
+    def get_normalized_scores(self):        
+        """fixed ceiling normalization of scores"""
+        scores = self.scores.copy()
+        #nonlinear_power = 1.1
+        nonlinear_power = 1.0
+        max_score = BASE_REWARD * CONSENSUS_BONUS_MULTIPLIER
+        n = len(scores)
+        if n == 0 or max_score <= 0:            
+            return np.zeros_like(scores)
+        transformed = np.power(scores, nonlinear_power)
+        max_sum = n * (max_score ** nonlinear_power)
+        if max_sum == 0:
+            return np.zeros_like(scores)
+        normalized = transformed / max_sum
+        return normalized
     
-    def get_normalized_scores(self):
-        """Get normalized and transformed scores for weight setting"""
-        # Normalize to sum to 1
-        epsilon = 1e-3  # Small value to stabilize normalization
-        adjusted_scores = self.scores + epsilon
-        sum_scores = np.sum(adjusted_scores)
-        if sum_scores > 0:
-            normalized = adjusted_scores / sum_scores
-        else:
-            normalized = np.ones_like(self.scores) / len(self.scores)
-        
-        # Apply non-linear transformation
-        nonlinear_power = 1.0     
-        transformed = np.power(normalized, nonlinear_power)
-        
-        # Final normalization
-        sum_transformed = np.sum(transformed)
-        if sum_transformed > 0:
-            final_scores = transformed / sum_transformed
-        else:
-            final_scores = np.ones_like(transformed) / len(transformed)
-        
-        return final_scores
 
     def save_state(self):
         if self.first_sync:
