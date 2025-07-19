@@ -56,7 +56,7 @@ def display_normalized_analysis(validator_instance):
         # Show which UIDs were filtered out
         zero_score_uids = [uid for uid, score in enumerate(validator_instance.scores) if score <= 1e-10]
         if zero_score_uids:
-            bt.logging.info(f"Zero/near-zero score UIDs: {zero_score_uids}")
+            bt.logging.info(f"Zero/near-zero score UIDs: {len(zero_score_uids)}")
             
         # Check for weight concentration
         top_3_weight = sum(weight for _, weight in sorted_normalized[:3])
@@ -272,10 +272,10 @@ def check_score_health(validator_instance, stats, max_min_ratio):
                 health_issues.append("Low EMA responsiveness")
                 recommendations.append("System may be in defensive mode due to failures")
         
-        if health_issues:
-            bt.logging.warning(f"🩺 Score Health Issues:")
-            for issue in health_issues:
-                bt.logging.warning(f"   - {issue}")
+        # if health_issues:
+        #     bt.logging.warning(f"🩺 Score Health Issues:")
+        #     for issue in health_issues:
+        #         bt.logging.warning(f"   - {issue}")
             
             # if recommendations:
             #     bt.logging.info(f"💡 Recommendations:")
@@ -366,15 +366,15 @@ def display_score_histogram(validator_instance, bins=20, width=20):
 def run_complete_score_analysis(validator_instance):
     """Run all score analysis functions in sequence"""
     try:
-        bt.logging.info(f"\033[1;36m=== ENHANCED SCORE ANALYSIS ===\033[0m")
+        #bt.logging.info(f"\033[1;36m=== ENHANCED SCORE ANALYSIS ===\033[0m")
         display_normalized_analysis(validator_instance)
-        display_ema_insights(validator_instance)
-        display_transformation_impact(validator_instance)
+        #display_ema_insights(validator_instance)
+        #display_transformation_impact(validator_instance)
         display_score_trends(validator_instance)
         display_epoch_info(validator_instance)
         display_batch_progress(validator_instance)
-        display_score_histogram(validator_instance)        
-        bt.logging.info(f"\033[1;36m=== ANALYSIS COMPLETE ===\033[0m")        
+        display_score_histogram(validator_instance)
+        bt.logging.info(f"\033[1;36m=== SUMMARY COMPLETE ===\033[0m")
     except Exception as e:
         bt.logging.error(f"Error in complete score analysis: {e}")
         bt.logging.error(traceback.format_exc())
