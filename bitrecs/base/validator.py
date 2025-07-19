@@ -624,12 +624,12 @@ class BaseValidatorNeuron(BaseNeuron):
         
         if np.all(self.scores == 0):
             bt.logging.warning("Scores are all zero.")
-            return
-        
-        # Lets not update until we have enough active miners to prevent normalizing over varying set lengths
-        # if len(self.active_miners) < self.min_set_size:
-        #     bt.logging.warning("Not enough active miners to update weights. Skipping.")
-        #     bt.logging.error(f"Weight vector mismatch, skipping until {self.sample_size} is reached")
+            return        
+      
+        # coverage = (len(self.batch_seen_uids) / len(self.total_uids)) * 100 if len(self.total_uids) > 0 else 0
+        # min_coverage = 0.9
+        # if coverage < min_coverage:
+        #     bt.logging.warning(f"\033[3;3mCoverage {coverage:.2f}% is below minimum threshold of {min_coverage * 100:.2f}%. Skipping weight update. \033[0m")
         #     return
 
         # Use normalized scores for weights

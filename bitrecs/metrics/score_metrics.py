@@ -312,10 +312,10 @@ def display_batch_progress(validator_instance):
             f"Processed batches: {cyan}{current_index}{reset}/{cyan}{total_batches}{reset} "
             f"({bold}{percent:.1f}%{reset})"
         )
-        
+
         percent_seen = (len(validator_instance.batch_seen_uids) / len(validator_instance.total_uids)) * 100 if len(validator_instance.total_uids) > 0 else 0
         bt.logging.info(
-            f"Unique UIDs seen this batch: {cyan}{len(validator_instance.batch_seen_uids)}{reset} "
+            f"Processed uids: {cyan}{len(validator_instance.batch_seen_uids)}{reset} "
             f"({bold}{percent_seen:.1f}%{reset} of total {len(validator_instance.total_uids)})"
         )
        
