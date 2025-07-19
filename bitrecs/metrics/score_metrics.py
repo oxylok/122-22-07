@@ -61,12 +61,17 @@ def display_normalized_analysis(validator_instance):
         # Check for weight concentration
         top_3_weight = sum(weight for _, weight in sorted_normalized[:3])
         if top_3_weight > 0.7:
-            bt.logging.warning(f"⚠️  High weight concentration in top 3: {top_3_weight:.1%}")
+            bt.logging.warning(f"⚠️High weight concentration in top 3: {top_3_weight:.1%}")
         
         # Check for extreme ranges
-        norm_ratio = norm_stats['max'] / norm_stats['min']
+        min_threshold = 1e-8
+        nonzero_norm = [x for x in norm_array if x > min_threshold]
+        if len(nonzero_norm) > 1:
+            norm_ratio = np.max(nonzero_norm) / np.min(nonzero_norm)
+        else:
+            norm_ratio = float('nan')
         if norm_ratio > 1000:
-            bt.logging.warning(f"⚠️  Extreme normalized range - ratio: {norm_ratio:.2f}")
+            bt.logging.warning(f"⚠️Extreme normalized range - ratio: {norm_ratio:.2f}")
         
     except Exception as e:
         bt.logging.error(f"Error in normalized analysis: {e}")
@@ -102,9 +107,9 @@ def display_ema_insights(validator_instance):
         
         # Interpret patterns
         if low_alpha_usage > 0.3:
-            bt.logging.warning("⚠️  High failure rate detected (frequent low alpha usage)")
+            bt.logging.warning("⚠️High failure rate detected (frequent low alpha usage)")
         if avg_alpha < default_alpha * 0.8:
-            bt.logging.warning("⚠️  System in defensive mode (low average alpha)")
+            bt.logging.warning("⚠️System in defensive mode (low average alpha)")
         
     except Exception as e:
         bt.logging.error(f"Error in EMA insights: {e}")
@@ -124,7 +129,7 @@ def display_transformation_impact(validator_instance):
         filtered_scores = active_scores[active_scores > min_threshold]
         
         if len(filtered_scores) < 2:
-            bt.logging.warning("⚠️  Too few significant scores for transformation analysis")
+            bt.logging.warning("⚠️Too few significant scores for transformation analysis")
             return
         
         # Normalize AFTER filtering
@@ -144,24 +149,27 @@ def display_transformation_impact(validator_instance):
         bt.logging.info(f"Score range: {np.min(filtered_scores):.6f} - {np.max(filtered_scores):.6f}")
         
         # Safe ratio calculation
-        linear_ratio = np.max(linear) / np.min(linear)
-        moderate_ratio = np.max(moderate) / np.min(moderate)
-        aggressive_ratio = np.max(aggressive) / np.min(aggressive)
+        linear_nonzero = linear[linear > min_threshold]
+        moderate_nonzero = moderate[moderate > min_threshold]
+        aggressive_nonzero = aggressive[aggressive > min_threshold]
+
+        linear_ratio = np.max(linear_nonzero) / np.min(linear_nonzero) if len(linear_nonzero) > 1 else float('nan')
+        moderate_ratio = np.max(moderate_nonzero) / np.min(moderate_nonzero) if len(moderate_nonzero) > 1 else float('nan')
+        aggressive_ratio = np.max(aggressive_nonzero) / np.min(aggressive_nonzero) if len(aggressive_nonzero) > 1 else float('nan')
         
         bt.logging.info(f"Linear (1.0) CV: {np.std(linear)/np.mean(linear):.3f}")
         bt.logging.info(f"Moderate (1.2) CV: {np.std(moderate)/np.mean(moderate):.3f}")
         bt.logging.info(f"Aggressive (1.5) CV: {np.std(aggressive)/np.mean(aggressive):.3f}")
-        
-        # Show current power being used
-        current_power = 1.0  # Update this based on your actual setting
+                
+        current_power = 1.0
         bt.logging.info(f"Current power: {current_power} ({'linear' if current_power == 1.0 else 'non-linear'})")
         
         # Show amplification effect with safe values
-        bt.logging.info(f"Max/Min ratios - Linear: {linear_ratio:.2f}, Moderate: {moderate_ratio:.2f}, Aggressive: {aggressive_ratio:.2f}")
+        bt.logging.info(f"Max/Min - Linear: {linear_ratio:.2f}, Moderate: {moderate_ratio:.2f}, Aggressive: {aggressive_ratio:.2f}")
         
         # Warning for extreme ratios
         if linear_ratio > 1000:
-            bt.logging.warning(f"⚠️  Extreme score range detected - consider score capping")
+            bt.logging.warning(f"⚠️Score range detected")
         
     except Exception as e:
         bt.logging.error(f"Error in transformation impact: {e}")

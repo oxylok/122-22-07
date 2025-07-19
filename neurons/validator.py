@@ -237,7 +237,7 @@ class Validator(BaseValidatorNeuron):
             max_min_ratio = stats['max'] / safe_min
 
             if stats['min'] < min_threshold:
-                bt.logging.warning(f"⚠️ Very small minimum score detected: {stats['min']:.8f}")
+                #bt.logging.warning(f"⚠️Very small minimum score detected: {stats['min']:.8f}")
                 bt.logging.info(f"Max/Min ratio (safe): {max_min_ratio:.2f}")
             else:
                 bt.logging.info(f"Max/Min ratio: {max_min_ratio:.2f}")

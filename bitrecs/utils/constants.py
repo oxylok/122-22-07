@@ -37,7 +37,7 @@ Constants:
 """
 
 ROOT_DIR = Path(bitrecs.__file__).parent.parent
-SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 21, tzinfo=timezone.utc)
+SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 28, tzinfo=timezone.utc)
 EPOCH_TEMPO = 360
 TEMPO_SYNC_INTERVAL = 120
 MAX_DENDRITE_TIMEOUT = 5
