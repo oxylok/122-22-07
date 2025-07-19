@@ -315,7 +315,7 @@ def display_batch_progress(validator_instance):
         reset = "\033[0m"
         bt.logging.info(f"\033[1;36m=== BATCH PROGRESS ===\033[0m")
         bt.logging.info(f"Total Size: {len(validator_instance.total_uids)}")
-        bt.logging.info(f"Batch Size: {CONST.MIN_BATCH_SIZE}")
+        bt.logging.info(f"Batch Size: {CONST.QUERY_BATCH_SIZE}")
         batches_completed = getattr(validator_instance, "batches_completed", 0)
         bt.logging.info(
             f"Processed batches: {cyan}{batches_completed}{reset}/{cyan}{total_batches}{reset} "
