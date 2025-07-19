@@ -319,7 +319,7 @@ def display_batch_progress(validator_instance):
     except Exception as e:
         bt.logging.error(f"Error in batch progress display: {e}")
 
-def display_score_histogram(validator_instance, bins=20, width=30):
+def display_score_histogram(validator_instance, bins=20, width=20):
     """
     Display a compact ASCII histogram of node scores in the terminal/logs.
     """
