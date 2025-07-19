@@ -175,7 +175,7 @@ class BaseValidatorNeuron(BaseNeuron):
        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
-        self.sample_size = self.config.neuron.sample_size       
+        self.sample_size = CONST.QUERY_BATCH_SIZE
         self.bad_set_count = 0
 
         self.last_tempo = None
@@ -466,7 +466,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                               responses=responses, 
                                               actions=self.user_actions,
                                               r_limit=self.r_limit,
-                                              batch_size=self.sample_size)
+                                              batch_size=CONST.QUERY_BATCH_SIZE)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
