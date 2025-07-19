@@ -156,7 +156,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.suspect_miners: List[int] = []
         #self.seen_uids = set()
         #self.unresponsive_uids = set()
-        
+        self.total_uids = set()
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
         #testnet vals
