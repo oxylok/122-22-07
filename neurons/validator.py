@@ -316,12 +316,13 @@ class Validator(BaseValidatorNeuron):
 
         """
         try:
+            bt.logging.trace(f"Cooldown sync ran at {int(time.time())}")
             proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {os.environ.get('BITRECS_API_KEY')}",
-                'User-Agent': f'Bitrecs-Node/{this_version}'
-            }        
+                "User-Agent": f"Bitrecs-Node/{this_version}"
+            }
             r = requests.get(f"{proxy_url}/cooldown", headers=headers, timeout=10)
             r.raise_for_status()
             cooldowns = r.json()
