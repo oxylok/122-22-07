@@ -165,7 +165,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.exclusion_uids.add(8)
         self.exclusion_uids.add(34)
 
-        self.update_total_uids()     
+        #self.update_total_uids()     
 
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
