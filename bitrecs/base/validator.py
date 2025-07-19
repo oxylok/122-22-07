@@ -159,6 +159,7 @@ class BaseValidatorNeuron(BaseNeuron):
         #self.unresponsive_uids = set()
         self.total_uids = set()
         self.batch_seen_uids = set()
+        self.batch_orphan_uids = set()
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
         
@@ -229,6 +230,7 @@ class BaseValidatorNeuron(BaseNeuron):
             ]
             self.tempo_batch_index = 0
             self.batch_seen_uids = set()
+            self.batch_orphan_uids = set()
             bt.logging.info(f"New tempo started with {len(self.tempo_batches)} batches of size {batch_size}")
 
     async def get_next_batch(self) -> List[int]:
@@ -458,6 +460,12 @@ class BaseValidatorNeuron(BaseNeuron):
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
                             bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
                             #self.update_successful_scores(rewards, chosen_uids)
+                            orphans = [(uid, reward) for uid, reward in zip(chosen_uids, rewards) if reward > 0]
+                            if orphans:
+                                bt.logging.warning("\033[33mOrphaned miners!\033[0m")
+                                for uid, reward in orphans:
+                                    self.batch_orphan_uids.add(uid)
+                                    bt.logging.warning(f"Orphan UID {uid}: reward={reward:.4f}")
                             synapse_with_event.event.set()
                             continue
                         
