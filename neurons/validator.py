@@ -343,8 +343,8 @@ async def main():
         start_time = time.time()      
         while True:
             tasks = [
-                asyncio.create_task(validator.tempo_sync()),
                 asyncio.create_task(validator.cooldown_sync()),
+                asyncio.create_task(validator.tempo_sync()),
                 asyncio.create_task(validator.version_sync()),               
                 asyncio.create_task(validator.r2_sync())
             ]                    
