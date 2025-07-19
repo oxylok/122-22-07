@@ -459,7 +459,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue                        
                         
                         failure_rate = np.sum(rewards == 0) / len(rewards)
-                        if failure_rate > CONST.BATCH_FAILURE_THRESHOLD:
+                        if failure_rate >= CONST.BATCH_FAILURE_THRESHOLD:
                             self.bad_set_count += 1
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
                             bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")                            
