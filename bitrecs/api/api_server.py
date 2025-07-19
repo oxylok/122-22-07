@@ -229,7 +229,8 @@ class ApiServer:
             "current_epoch": current_epoch,
             "blocks_until_next_epoch": blocks_until_next_epoch,
             "epoch_start_block": epoch_start_block,
-            "minutes_to_next_block": round(minutes_to_next_block, 2)
+            "minutes_to_next_epoch": round(minutes_to_next_block, 2),
+            "tempo": CONST.EPOCH_TEMPO
         }
 
         return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "ts": ts, "status": "OK", "metrics": metrics})

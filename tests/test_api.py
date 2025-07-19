@@ -387,5 +387,6 @@ def test_api_has_metrics():
     response = requests.get(url, headers=headers)
     print(response.text)
     thing = json.loads(response.text)
+    print(json.dumps(thing, indent=2))
     assert "metrics" in thing
 
