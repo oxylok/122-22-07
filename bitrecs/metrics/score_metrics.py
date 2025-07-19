@@ -8,9 +8,9 @@ def display_normalized_analysis(validator_instance):
     try:
         normalized_scores = validator_instance.get_normalized_scores()
         
-        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")        
+        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")
         
-        raw_active = validator_instance.scores[validator_instance.scores > 1e-10]  # Use small threshold instead of 0
+        raw_active = validator_instance.scores
         if len(raw_active) > 0:
             bt.logging.info(f"Raw score range: {np.min(raw_active):.6f} - {np.max(raw_active):.6f}")
             raw_ratio = np.max(raw_active) / np.min(raw_active)
@@ -20,10 +20,7 @@ def display_normalized_analysis(validator_instance):
             bt.logging.warning("No significant raw scores found")
             return
         
-        active_normalized = {}
-        for uid, norm_score in enumerate(normalized_scores):
-            if norm_score > 1e-6:  # Above your clipping threshold
-                active_normalized[uid] = norm_score
+        active_normalized = {uid: norm_score for uid, norm_score in enumerate(normalized_scores)}        
         
         if not active_normalized:
             bt.logging.warning("No active normalized weights")
@@ -115,10 +112,9 @@ def display_transformation_impact(validator_instance):
         # Get active scores
         active_scores = validator_instance.scores[validator_instance.scores > 0]
         if len(active_scores) < 2:
-            return
+            return        
         
-        # CRITICAL FIX: Filter out extremely small values before transformation
-        min_threshold = 1e-6
+        min_threshold = 1e-8
         filtered_scores = active_scores[active_scores > min_threshold]
         
         if len(filtered_scores) < 2:
@@ -334,8 +330,7 @@ def display_score_histogram(validator_instance, bins=20, width=20):
     for i in range(bins):
         center = (bin_edges[i] + bin_edges[i+1]) / 2
         count = hist[i]
-        bar = '█' * int(width * count / max_count) if max_count > 0 else ''
-        # Example: 0.02 | ███ 3
+        bar = '█' * int(width * count / max_count) if max_count > 0 else ''        
         bt.logging.trace(f"{center:5.2f} | {bar:<{width}} {count}")
     bt.logging.trace(f"Min: {scores.min():.4f}, Max: {scores.max():.4f}, Mean: {scores.mean():.4f}, Std: {scores.std():.4f}")
 
