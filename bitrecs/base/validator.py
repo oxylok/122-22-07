@@ -136,9 +136,10 @@ class BaseValidatorNeuron(BaseNeuron):
         if api_port != 7779:
             raise Exception("API Port must be set to 7779")
         
+        self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet
         self.api_port = api_port
         self.api_server = None
-        if self.config.api.enabled:            
+        if self.config.api.enabled:
             self.api_server = ApiServer(
                 api_port=self.api_port,
                 forward_fn=api_forward,
@@ -152,35 +153,26 @@ class BaseValidatorNeuron(BaseNeuron):
         self.should_exit: bool = False
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
-        self.lock = asyncio.Lock()        
+        self.lock = asyncio.Lock()
         self.suspect_miners: List[int] = []
         #self.seen_uids = set()
         #self.unresponsive_uids = set()
         self.total_uids = set()
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
-        #testnet vals
+        
         self.exclusion_uids.add(0)
-        self.exclusion_uids.add(1)
-        self.exclusion_uids.add(8)
-        self.exclusion_uids.add(34)
-
-        self.update_total_uids()
-
-        self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
+        if self.network == "testnet":
+            self.exclusion_uids.add(1)
+            self.exclusion_uids.add(8)
+            self.exclusion_uids.add(34)        
+       
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
-        self.sample_size = self.config.neuron.sample_size
-        # if self.network == "mainnet":
-        #     self.sample_size = 16
-        # else:
-        #     self.sample_size = 24        
-        # self.min_set_size = self.sample_size
-        # if self.network != "mainnet": #Testing override
-        #     self.min_set_size = CONST.MIN_BATCH_SIZE
+        self.sample_size = self.config.neuron.sample_size       
         self.bad_set_count = 0
         self.last_tempo = None
-        
+        self.update_total_uids()
         
         write_node_info(
             network=self.network,
@@ -216,16 +208,16 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"Validator Initialized at block: {self.block}")
 
     def update_total_uids(self):
-        """ Update the total_uids set based on the current metagraph. """     
-        
+        """ Update the total_uids set based on the current metagraph. """
         uids, cooldown_uids = get_all_miner_uids(self)
         self.total_uids = set(
             uid for uid in uids
             if uid not in self.exclusion_uids
         )
+        self.suspect_miners = cooldown_uids
         bt.logging.info(f"Total UIDs updated: {len(self.total_uids)}")
 
-    async def start_new_tempo(self):
+    async def start_new_tempo(self):        
         all_miners = list(self.total_uids)
         safe_random.shuffle(all_miners)
         batch_size = CONST.QUERY_BATCH_SIZE
@@ -235,6 +227,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 for i in range(0, len(all_miners), batch_size)
             ]
             self.tempo_batch_index = 0
+            bt.logging.info(f"New tempo started with {len(self.tempo_batches)} batches of size {batch_size}")
 
     async def get_next_batch(self) -> List[int]:
         async with self.lock:
@@ -404,10 +397,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not validate_br_request(synapse_with_event.input_synapse):
                             bt.logging.error("Request failed Validation, skipped.")
                             synapse_with_event.event.set()
-                            continue
+                            continue                        
                         
-                        #chosen_uids : list[int] = self.active_miners
-                        chosen_uids : list[int] = await self.get_next_batch() #Get next batch of miners
+                        chosen_uids : list[int] = await self.get_next_batch()
                         if len(chosen_uids) < CONST.MIN_BATCH_SIZE:
                             bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
@@ -462,7 +454,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             self.bad_set_count += 1
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
                             bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
-                            #self.update_successful_scores(rewards, chosen_uids)
+                            self.update_successful_scores(rewards, chosen_uids)
                             synapse_with_event.event.set()
                             continue
                         
@@ -546,7 +538,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         synapse_with_event.event.set()
                     bt.logging.error(traceback.format_exc())
                     bt.logging.error("\033[31m Sleeping for 60 seconds ... \033[0m")
-                    await asyncio.sleep(60)                   
+                    await asyncio.sleep(60)
                 finally:
                     if api_enabled and api_exclusive:
                         bt.logging.info(f"API MODE - forward finished, ready for next request")                        

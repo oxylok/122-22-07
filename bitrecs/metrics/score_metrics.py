@@ -330,7 +330,7 @@ def display_score_histogram(validator_instance, bins=20, width=20):
     for i in range(bins):
         center = (bin_edges[i] + bin_edges[i+1]) / 2
         count = hist[i]
-        bar = '█' * int(width * count / max_count) if max_count > 0 else ''        
+        bar = '█' * int(width * count / max_count) if max_count > 0 else ''
         bt.logging.trace(f"{center:5.2f} | {bar:<{width}} {count}")
     bt.logging.trace(f"Min: {scores.min():.4f}, Max: {scores.max():.4f}, Mean: {scores.mean():.4f}, Std: {scores.std():.4f}")
 
