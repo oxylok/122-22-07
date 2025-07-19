@@ -477,7 +477,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         if failure_rate >= CONST.BATCH_FAILURE_THRESHOLD:
                             self.bad_set_count += 1
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
-                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")                            
+                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
                             orphans = [(uid, reward) for uid, reward in zip(chosen_uids, rewards) if reward > 0]
                             if orphans:
                                 bt.logging.warning("\033[33mOrphaned miners!\033[0m")
@@ -486,6 +486,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                     bt.logging.warning(f"Orphan UID {uid}: reward={reward:.4f}")
                                 if CONST.REWARD_ORPHANS:
                                     self.update_successful_scores(rewards, chosen_uids)
+                            self.decay_suspects()
                             synapse_with_event.event.set()
                             continue
                         
@@ -512,11 +513,13 @@ class BaseValidatorNeuron(BaseNeuron):
                                 bt.logging.trace(winner)
                         else:
                             bt.logging.error("\033[1;33mSkipped Scoring - no valid candidates in responses \033[0m")
+                            self.decay_suspects()
                             synapse_with_event.event.set()
                             continue
                         
                         if selected_rec is None:
                             bt.logging.error("\033[1;31mSkipped Scoring - no consensus rec in responses \033[0m")
+                            self.decay_suspects()
                             synapse_with_event.event.set()
                             continue
                     
@@ -792,16 +795,25 @@ class BaseValidatorNeuron(BaseNeuron):
             else:
                 # Non-zero reward - use normal EMA
                 self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]
+        
+        self.decay_suspects(uids_array)
+        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
-        # Decay scores for suspect_miners (not in uids_array)
+
+    def decay_suspects(self, uids_array: Optional[List[int]] = None):
+        """Decay scores for suspect miners."""
+        if not self.suspect_miners:
+            return
+        if uids_array is None:
+            uids_array = []
+        
+        bt.logging.info(f"Decaying scores for suspect miners: {self.suspect_miners}")
         for suspect_uid in self.suspect_miners:
             if suspect_uid not in uids_array and 0 <= suspect_uid < len(self.scores):
                 old_score = self.scores[suspect_uid]
                 self.scores[suspect_uid] *= SUSPECT_MINER_DECAY
-                bt.logging.debug(f"Decayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f}")
-
-        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
-
+                bt.logging.info(f"\033[33mDecayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f} \033[0m")
+                
 
     def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
         """
