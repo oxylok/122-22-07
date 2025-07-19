@@ -242,6 +242,13 @@ class BaseValidatorNeuron(BaseNeuron):
             if not hasattr(self, 'tempo_batches') or not self.tempo_batches:
                 await self.start_new_tempo()
             batch = self.tempo_batches[self.tempo_batch_index]
+            # Wrap around to fill the batch if it's too small
+            if len(batch) < CONST.QUERY_BATCH_SIZE:
+                needed = CONST.QUERY_BATCH_SIZE - len(batch)
+                # Flatten all miners and exclude those already in batch
+                all_miners = list(self.total_uids - set(batch))
+                safe_random.shuffle(all_miners)
+                batch += all_miners[:needed]
             self.tempo_batch_index = (self.tempo_batch_index + 1) % len(self.tempo_batches)
             self.batches_completed += 1
             return batch
