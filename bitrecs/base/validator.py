@@ -65,7 +65,7 @@ from bitrecs.utils.wandb import WandbHelper
 from bitrecs.commerce.user_action import UserAction
 
 
-API_QUEUE = SimpleQueue() # Queue of SynapseEventPair
+API_QUEUE = SimpleQueue()
 
 @dataclass
 class SynapseWithEvent:
@@ -462,23 +462,24 @@ class BaseValidatorNeuron(BaseNeuron):
                         if failure_rate > CONST.BATCH_FAILURE_THRESHOLD:
                             self.bad_set_count += 1
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
-                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
-                            #self.update_successful_scores(rewards, chosen_uids)
+                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")                            
                             orphans = [(uid, reward) for uid, reward in zip(chosen_uids, rewards) if reward > 0]
                             if orphans:
                                 bt.logging.warning("\033[33mOrphaned miners!\033[0m")
                                 for uid, reward in orphans:
                                     self.batch_orphan_uids.add(uid)
                                     bt.logging.warning(f"Orphan UID {uid}: reward={reward:.4f}")
+                                if CONST.REWARD_ORPHANS:
+                                    self.update_successful_scores(rewards, chosen_uids)
                             synapse_with_event.event.set()
                             continue
                         
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
-                        consensus_bonus_applied = False                        
+                        consensus_bonus_applied = False
                         if len(good_indices) > 0:
                             good_responses = [responses[i] for i in good_indices]
-                            bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
+                            bt.logging.info(f"Filtered to \033[32m{len(good_responses)}\033[0m from \033[32m{len(responses)}\033[0m total responses")
                             top_k = await self.analyze_similar_requests(good_responses)
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]

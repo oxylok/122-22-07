@@ -90,14 +90,14 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=CONST.TEMPO_SYNC_INTERVAL))
     async def tempo_sync(self):
         """
-        Periodically checks if a new tempo has started and resets miner batches.
+        Periodically checks if a new epoch has started and resets miner batches.
         
         """
 
         def get_current_tempo(self):
             current_block = self.block
             netuid = self.config.netuid
-            bt.logging.trace(f"Getting current tempo for block {current_block} and netuid {netuid}")
+            bt.logging.trace(f"Get epoch on block {current_block} and netuid {netuid}")
             current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
             return current_tempo
         
@@ -197,7 +197,7 @@ class Validator(BaseValidatorNeuron):
         """
         Enhanced score display with normalized weights and EMA insights
         """
-        bt.logging.trace(f"Score sync ran at {int(time.time())}")
+        #bt.logging.trace(f"Score sync ran at {int(time.time())}")
         
         try:
             # Get active scores (non-zero)
@@ -323,8 +323,8 @@ class Validator(BaseValidatorNeuron):
                 'User-Agent': f'Bitrecs-Node/{this_version}'
             }        
             r = requests.get(f"{proxy_url}/cooldown", headers=headers, timeout=10)
-            cooldowns = r.json()
             r.raise_for_status()
+            cooldowns = r.json()
             self.BANNED_IPS = cooldowns["banned_ips"] or []
             self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
             self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []

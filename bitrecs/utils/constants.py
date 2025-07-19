@@ -33,6 +33,7 @@ Constants:
     BATCH_FAILURE_THRESHOLD (float): Threshold for batch failure.
     SCORE_DISPLAY_ENABLED (bool): Flag to enable score display.
     SCORE_DISPLAY_INTERVAL (int): Interval for score display updates.
+    REWARD_ORPHANS (bool): Flag to enable rewarding orphaned miners.
 
 """
 
@@ -63,3 +64,4 @@ MIN_QUERY_BATCH_SIZE = 3
 BATCH_FAILURE_THRESHOLD = 0.90
 SCORE_DISPLAY_ENABLED = True
 SCORE_DISPLAY_INTERVAL = 180
+REWARD_ORPHANS = False

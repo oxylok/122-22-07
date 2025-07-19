@@ -64,14 +64,14 @@ def display_normalized_analysis(validator_instance):
             bt.logging.warning(f"⚠️High weight concentration in top 3: {top_3_weight:.1%}")
         
         # Check for extreme ranges
-        min_threshold = 1e-8
-        nonzero_norm = [x for x in norm_array if x > min_threshold]
-        if len(nonzero_norm) > 1:
-            norm_ratio = np.max(nonzero_norm) / np.min(nonzero_norm)
-        else:
-            norm_ratio = float('nan')
-        if norm_ratio > 1000:
-            bt.logging.warning(f"⚠️Extreme normalized range - ratio: {norm_ratio:.2f}")
+        # min_threshold = 1e-8
+        # nonzero_norm = [x for x in norm_array if x > min_threshold]
+        # if len(nonzero_norm) > 1:
+        #     norm_ratio = np.max(nonzero_norm) / np.min(nonzero_norm)
+        # else:
+        #     norm_ratio = float('nan')
+        # if norm_ratio > 1000:
+        #     bt.logging.warning(f"⚠️Extreme normalized range - ratio: {norm_ratio:.2f}")
         
     except Exception as e:
         bt.logging.error(f"Error in normalized analysis: {e}")
@@ -360,7 +360,7 @@ def display_score_histogram(validator_instance, bins=20, width=20):
         count = hist[i]
         bar = '█' * int(width * count / max_count) if max_count > 0 else ''
         bt.logging.trace(f"{center:5.2f} | {bar:<{width}} {count}")
-    bt.logging.trace(f"Min: {scores.min():.4f}, Max: {scores.max():.4f}, Mean: {scores.mean():.4f}, Std: {scores.std():.4f}")
+    bt.logging.trace(f"Min:{scores.min():.4f}, Max:{scores.max():.4f}, Mean:{scores.mean():.4f}, Std:{scores.std():.4f}")
 
 
 def run_complete_score_analysis(validator_instance):
