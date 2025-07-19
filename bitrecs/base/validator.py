@@ -168,6 +168,10 @@ class BaseValidatorNeuron(BaseNeuron):
             self.exclusion_uids.add(1)
             self.exclusion_uids.add(8)
             self.exclusion_uids.add(34)
+
+        self.banned_coldkeys = []
+        self.banned_hotkeys = []
+        self.banned_ips = []
        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
@@ -212,9 +216,12 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.info(f"Validator Initialized at block: {self.block}")
 
-    def update_total_uids(self):
-        """ Update the total_uids set based on the current metagraph. """
-        uids, cooldown_uids = get_all_miner_uids(self)
+    def update_total_uids(self):        
+        uids, cooldown_uids = get_all_miner_uids(self, 
+            banned_coldkeys=self.banned_coldkeys,
+            banned_hotkeys=self.banned_hotkeys,
+            banned_ips=self.banned_ips
+        )
         self.total_uids = set(
             uid for uid in uids
             if uid not in self.exclusion_uids

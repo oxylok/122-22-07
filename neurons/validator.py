@@ -325,11 +325,11 @@ class Validator(BaseValidatorNeuron):
             r = requests.get(f"{proxy_url}/cooldown", headers=headers, timeout=10)
             r.raise_for_status()
             cooldowns = r.json()
-            self.BANNED_IPS = cooldowns["banned_ips"] or []
-            self.BANNED_COLDKEYS = cooldowns["banned_coldkeys"] or []
-            self.BANNED_HOTKEYS = cooldowns["banned_hotkeys"] or []
+            self.banned_ips = cooldowns["banned_ips"] or []
+            self.banned_coldkeys = cooldowns["banned_coldkeys"] or []
+            self.banned_hotkeys = cooldowns["banned_hotkeys"] or []
             self.r_limit = cooldowns["r_limit"] or 1.0
-            bt.logging.trace(f"Cooldowns updated: Limit: {self.r_limit},  {len(self.BANNED_IPS)} IPs, {len(self.BANNED_COLDKEYS)} coldkeys, {len(self.BANNED_HOTKEYS)} hotkeys")
+            bt.logging.trace(f"Cooldowns updated: Limit: {self.r_limit},  {len(self.banned_ips)} IPs, {len(self.banned_coldkeys)} coldkeys, {len(self.banned_hotkeys)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
     
