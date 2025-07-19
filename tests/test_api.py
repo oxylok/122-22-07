@@ -1,3 +1,4 @@
+import json
 import os
 os.environ["NEST_ASYNCIO"] = "0"
 import time
@@ -375,3 +376,16 @@ def test_post_node_info():
 def test_trigger_update():
     thing = True
     assert True == thing
+
+
+def test_api_has_metrics():
+    url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/version"
+    headers = {
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    response = requests.get(url, headers=headers)
+    print(response.text)
+    thing = json.loads(response.text)
+    assert "metrics" in thing
+

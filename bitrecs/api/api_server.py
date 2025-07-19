@@ -200,8 +200,7 @@ class ApiServer:
             return JSONResponse(status_code=500, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "meta_data error", "metrics": {}})
         v = self.validator.local_metadata.to_dict()
 
-        total_uids = self.validator.total_uids or []
-        seen_uids = self.validator.seen_uids or []
+        total_uids = self.validator.total_uids or []        
         suspect_miners = self.validator.suspect_miners or []
         batch_seen_uids = self.validator.batch_seen_uids or []
         batch_orphan_uids = self.validator.batch_orphan_uids or []
@@ -218,7 +217,6 @@ class ApiServer:
 
         metrics = {
             "total_uids": sorted(total_uids),
-            "seen_uids": sorted(seen_uids),
             "suspect_miners": sorted(suspect_miners),
             "batch_seen_uids": sorted(batch_seen_uids),
             "batch_orphan_uids": sorted(batch_orphan_uids),
