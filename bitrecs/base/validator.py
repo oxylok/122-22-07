@@ -30,8 +30,6 @@ import wandb
 import anyio
 import subprocess
 from dotenv import load_dotenv
-
-from bitrecs.utils.uids import get_all_miner_uids
 load_dotenv()
 from random import SystemRandom
 safe_random = SystemRandom()
@@ -52,6 +50,7 @@ from bitrecs.utils.distance import (
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
+from bitrecs.utils.uids import get_all_miner_uids
 from bitrecs.validator.reward import CONSENSUS_BONUS_MULTIPLIER, SUSPECT_MINER_DECAY, get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
@@ -153,8 +152,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.should_exit: bool = False
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
-        self.lock = asyncio.Lock()
-        #self.active_miners: List[int] = []
+        self.lock = asyncio.Lock()        
         self.suspect_miners: List[int] = []
         #self.seen_uids = set()
         #self.unresponsive_uids = set()
@@ -167,23 +165,19 @@ class BaseValidatorNeuron(BaseNeuron):
         self.exclusion_uids.add(8)
         self.exclusion_uids.add(34)
 
-        self.update_total_uids()
-        # self.total_uids = set(
-        #     uid for uid in range(self.metagraph.n.item())
-        #     if uid not in self.exclusion_uids
-        # )
+        self.update_total_uids()     
 
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         self.r_limit = 0.5
         self.sample_size = self.config.neuron.sample_size
-        if self.network == "mainnet":
-            self.sample_size = 16
-        else:
-            self.sample_size = 24
-        self.min_set_size = self.sample_size
-        if self.network != "mainnet": #Testing override
-            self.min_set_size = CONST.MIN_ACTIVE_MINERS
+        # if self.network == "mainnet":
+        #     self.sample_size = 16
+        # else:
+        #     self.sample_size = 24        
+        # self.min_set_size = self.sample_size
+        # if self.network != "mainnet": #Testing override
+        #     self.min_set_size = CONST.MIN_BATCH_SIZE
         self.bad_set_count = 0
         self.last_tempo = None
         
@@ -234,7 +228,7 @@ class BaseValidatorNeuron(BaseNeuron):
     async def start_new_tempo(self):
         all_miners = list(self.total_uids)
         safe_random.shuffle(all_miners)
-        batch_size = 8
+        batch_size = CONST.QUERY_BATCH_SIZE
         async with self.lock:
             self.tempo_batches = [
                 all_miners[i:i+batch_size]
@@ -329,11 +323,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices)
                 bt.logging.trace(matrix)
 
-            for sim in most_similar:
-                #bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
-                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
-                #skus = rec_list_to_set(sim.results)
-                #bt.logging.trace(f"SKUS: {skus or '[ERROR]'}")
+            for sim in most_similar:                
+                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")                
 
             et = time.perf_counter()
             diff = et - st
@@ -417,7 +408,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         #chosen_uids : list[int] = self.active_miners
                         chosen_uids : list[int] = await self.get_next_batch() #Get next batch of miners
-                        if len(chosen_uids) < CONST.MIN_ACTIVE_MINERS:
+                        if len(chosen_uids) < CONST.MIN_BATCH_SIZE:
                             bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
                             continue

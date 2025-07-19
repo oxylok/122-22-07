@@ -306,7 +306,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"cooldown_sync Exception: {e}")
       
     
-    @execute_periodically(timedelta(seconds=60))
+    @execute_periodically(timedelta(seconds=CONST.TEMPO_SYNC_INTERVAL))
     async def tempo_sync(self):
         """
         Periodically checks if a new tempo has started and resets miner batches.
