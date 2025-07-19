@@ -86,6 +86,34 @@ class Validator(BaseValidatorNeuron):
         """                
         return await forward(self, pr)
     
+    
+    @execute_periodically(timedelta(seconds=CONST.TEMPO_SYNC_INTERVAL))
+    async def tempo_sync(self):
+        """
+        Periodically checks if a new tempo has started and resets miner batches.
+        
+        """
+
+        def get_current_tempo(self):
+            current_block = self.block
+            netuid = self.config.netuid
+            bt.logging.trace(f"Getting current tempo for block {current_block} and netuid {netuid}")
+            current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
+            return current_tempo
+        
+        bt.logging.trace(f"Tempo sync ran at {int(time.time())}")
+        if self.should_sync_metagraph():
+            bt.logging.info(f"Resyncing metagraph in tempo_sync - current size: {len(self.total_uids)} at block {self.block}")
+            self.resync_metagraph()
+            self.update_total_uids()
+            bt.logging.info(f"Metagraph resynced - new size: {len(self.total_uids)}")
+
+        current_tempo = get_current_tempo(self)
+        if self.last_tempo != current_tempo:
+            self.last_tempo = current_tempo
+            await self.start_new_tempo()
+            bt.logging.info(f"\033[1;32mNew tempo started: {current_tempo} - Miner batches reset\033[0m")
+    
      
     @execute_periodically(timedelta(seconds=CONST.VERSION_CHECK_INTERVAL))
     async def version_sync(self):
@@ -119,7 +147,7 @@ class Validator(BaseValidatorNeuron):
     
     
     @execute_periodically(timedelta(seconds=CONST.R2_SYNC_INTERVAL))
-    async def response_sync(self):
+    async def r2_sync(self):
         """
         Periodically sync miner responses to R2
         """
@@ -304,34 +332,6 @@ class Validator(BaseValidatorNeuron):
             bt.logging.trace(f"Cooldowns updated: Limit: {self.r_limit},  {len(self.BANNED_IPS)} IPs, {len(self.BANNED_COLDKEYS)} coldkeys, {len(self.BANNED_HOTKEYS)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
-      
-    
-    @execute_periodically(timedelta(seconds=CONST.TEMPO_SYNC_INTERVAL))
-    async def tempo_sync(self):
-        """
-        Periodically checks if a new tempo has started and resets miner batches.
-        
-        """
-
-        def get_current_tempo(self):
-            current_block = self.block
-            netuid = self.config.netuid
-            bt.logging.trace(f"Getting current tempo for block {current_block} and netuid {netuid}")
-            current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
-            return current_tempo
-        
-        bt.logging.trace(f"Tempo sync ran at {int(time.time())}")
-        if self.should_sync_metagraph():
-            bt.logging.info(f"Resyncing metagraph in tempo_sync - current size: {len(self.total_uids)} at block {self.block}")
-            self.resync_metagraph()
-            self.update_total_uids()
-            bt.logging.info(f"Metagraph resynced - new size: {len(self.total_uids)}")
-
-        current_tempo = get_current_tempo(self)
-        if self.last_tempo != current_tempo:
-            self.last_tempo = current_tempo
-            await self.start_new_tempo()
-            bt.logging.info(f"\033[1;32mNew tempo started: {current_tempo} - Miner batches reset\033[0m")
     
 
 
@@ -346,7 +346,7 @@ async def main():
                 asyncio.create_task(validator.tempo_sync()),
                 asyncio.create_task(validator.cooldown_sync()),
                 asyncio.create_task(validator.version_sync()),               
-                asyncio.create_task(validator.response_sync())
+                asyncio.create_task(validator.r2_sync())
             ]                    
             if validator.config.logging.trace and CONST.SCORE_DISPLAY_ENABLED:
                 tasks.append(asyncio.create_task(validator.score_sync()))

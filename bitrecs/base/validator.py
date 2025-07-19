@@ -124,12 +124,9 @@ class BaseValidatorNeuron(BaseNeuron):
         self.dendrite = bt.dendrite(wallet=self.wallet)
         bt.logging.info(f"Dendrite: {self.dendrite}")
         
-        self.scores = np.zeros(self.metagraph.n, dtype=np.float32)
-
-        # Init sync with the network. Updates the metagraph.
+        self.scores = np.zeros(self.metagraph.n, dtype=np.float32)        
         self.sync()
-
-        # Serve axon to enable external connections.
+        
         if not self.config.neuron.axon_off:
             self.serve_axon()
         else:
@@ -164,9 +161,9 @@ class BaseValidatorNeuron(BaseNeuron):
         self.batch_orphan_uids = set()
         self.suspect_miners: List[int] = []
         self.exclusion_uids = set()
-        self.exclusion_uids.add(self.uid)
-        
         self.exclusion_uids.add(0)
+        self.exclusion_uids.add(self.uid)
+
         if self.network == "testnet":
             self.exclusion_uids.add(1)
             self.exclusion_uids.add(8)
@@ -412,17 +409,15 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue                        
                         
                         chosen_uids : list[int] = await self.get_next_batch()
-                        if len(chosen_uids) < CONST.MIN_BATCH_SIZE:
+                        if len(chosen_uids) < CONST.MIN_QUERY_BATCH_SIZE:
                             bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
                             synapse_with_event.event.set()
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
                         self.batch_seen_uids.update(chosen_uids)
-                        #bt.logging.trace(f"Batch seen uids after update: {len(self.batch_seen_uids)} / {len(self.total_uids)}")
-
-                        chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
-                        api_request = synapse_with_event.input_synapse
                         
+                        chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
+                        api_request = synapse_with_event.input_synapse                        
                         st = time.perf_counter()
                         responses = await self.dendrite.forward(
                             axons = chosen_axons, 
