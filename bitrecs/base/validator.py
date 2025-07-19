@@ -641,10 +641,10 @@ class BaseValidatorNeuron(BaseNeuron):
       
         coverage = (len(self.batch_seen_uids) / len(self.total_uids)) * 100 if len(self.total_uids) > 0 else 0
         bt.logging.trace(f"\033[32mCoverage: {coverage:.2f}% \033[0m")
-        min_coverage = 0.9
+        min_coverage = 80
         if coverage < min_coverage:
             bt.logging.warning(f"\033[3;3mUpdating premature weights! \033[0m")
-            bt.logging.warning(f"\033[3;3mCoverage {coverage:.2f}% is below minimum threshold of {min_coverage * 100:.2f}%.\033[0m")
+            bt.logging.warning(f"\033[3;3mCoverage {coverage:.2f}% is below minimum threshold of {min_coverage:.2f}%.\033[0m")
             #return
 
         # Use normalized scores for weights
