@@ -174,6 +174,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.sample_size = self.config.neuron.sample_size       
         self.bad_set_count = 0
         self.last_tempo = None
+        self.batches_completed = 0
         self.update_total_uids()
         
         write_node_info(
@@ -229,6 +230,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 for i in range(0, len(all_miners), batch_size)
             ]
             self.tempo_batch_index = 0
+            self.batches_completed = 0
             self.batch_seen_uids = set()
             self.batch_orphan_uids = set()
             bt.logging.info(f"New tempo started with {len(self.tempo_batches)} batches of size {batch_size}")
@@ -239,6 +241,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 await self.start_new_tempo()
             batch = self.tempo_batches[self.tempo_batch_index]
             self.tempo_batch_index = (self.tempo_batch_index + 1) % len(self.tempo_batches)
+            self.batches_completed += 1
             return batch
 
     def serve_axon(self):
@@ -410,6 +413,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
                         self.batch_seen_uids.update(chosen_uids)
+                        bt.logging.trace(f"Batch seen uids after update: {len(self.batch_seen_uids)} / {len(self.total_uids)}")
 
                         chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
                         api_request = synapse_with_event.input_synapse

@@ -308,10 +308,15 @@ def display_batch_progress(validator_instance):
         bold = "\033[1m"
         reset = "\033[0m"
         bt.logging.info(f"\033[1;36m=== BATCH PROGRESS ===\033[0m")
+        batches_completed = getattr(validator_instance, "batches_completed", 0)
         bt.logging.info(
-            f"Processed batches: {cyan}{current_index}{reset}/{cyan}{total_batches}{reset} "
-            f"({bold}{percent:.1f}%{reset})"
+            f"Processed batches: {cyan}{batches_completed}{reset}/{cyan}{total_batches}{reset} "
+            f"({bold}{(batches_completed / total_batches) * 100:.1f}%{reset})"
         )
+        # bt.logging.info(
+        #     f"Processed batches: {cyan}{current_index}{reset}/{cyan}{total_batches}{reset} "
+        #     f"({bold}{percent:.1f}%{reset})"
+        # )
 
         percent_seen = (len(validator_instance.batch_seen_uids) / len(validator_instance.total_uids)) * 100 if len(validator_instance.total_uids) > 0 else 0
         bt.logging.info(
