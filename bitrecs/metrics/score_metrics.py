@@ -2,6 +2,7 @@ import traceback
 import bittensor as bt
 import numpy as np
 from bitrecs.utils import epoch
+from bitrecs.utils import constants as CONST
 
 def display_normalized_analysis(validator_instance):
     """Display normalized scores that are actually used for weights"""
@@ -308,11 +309,13 @@ def display_batch_progress(validator_instance):
         if total_batches == 0:
             bt.logging.info("No batches initialized for this tempo.")
             return
-        percent = (current_index / total_batches) * 100        
+        #percent = (current_index / total_batches) * 100
         cyan = "\033[36m"
         bold = "\033[1m"
         reset = "\033[0m"
         bt.logging.info(f"\033[1;36m=== BATCH PROGRESS ===\033[0m")
+        bt.logging.info(f"Total Size: {len(validator_instance.total_uids)}")
+        bt.logging.info(f"Batch Size: {CONST.MIN_BATCH_SIZE}")
         batches_completed = getattr(validator_instance, "batches_completed", 0)
         bt.logging.info(
             f"Processed batches: {cyan}{batches_completed}{reset}/{cyan}{total_batches}{reset} "
