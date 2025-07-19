@@ -268,10 +268,10 @@ def check_score_health(validator_instance, stats, max_min_ratio):
             for issue in health_issues:
                 bt.logging.warning(f"   - {issue}")
             
-            if recommendations:
-                bt.logging.info(f"💡 Recommendations:")
-                for rec in recommendations:
-                    bt.logging.info(f"   - {rec}")
+            # if recommendations:
+            #     bt.logging.info(f"💡 Recommendations:")
+            #     for rec in recommendations:
+            #         bt.logging.info(f"   - {rec}")
         else:
             bt.logging.info(f"✅ Score health: Good")
     
