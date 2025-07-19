@@ -158,6 +158,7 @@ class BaseValidatorNeuron(BaseNeuron):
         #self.seen_uids = set()
         #self.unresponsive_uids = set()
         self.total_uids = set()
+        self.batch_seen_uids = set()
         self.exclusion_uids = set()
         self.exclusion_uids.add(self.uid)
         
@@ -227,6 +228,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 for i in range(0, len(all_miners), batch_size)
             ]
             self.tempo_batch_index = 0
+            self.batch_seen_uids = set()
             bt.logging.info(f"New tempo started with {len(self.tempo_batches)} batches of size {batch_size}")
 
     async def get_next_batch(self) -> List[int]:
@@ -405,6 +407,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
+                        self.batch_seen_uids.update(chosen_uids)
 
                         chosen_axons = [self.metagraph.axons[uid] for uid in chosen_uids]
                         api_request = synapse_with_event.input_synapse
