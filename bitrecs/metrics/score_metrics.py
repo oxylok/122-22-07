@@ -371,9 +371,9 @@ def display_batch_progress(validator_instance):
         bt.logging.error(f"Error in batch progress display: {e}")
 
 
-def display_score_histogram(validator_instance, bins=20, width=60):
+def display_score_histogram(validator_instance, bins=20, width=30):
     """
-    Display an ASCII histogram of node scores in the terminal/logs.
+    Display a compact ASCII histogram of node scores in the terminal/logs.
     """
     scores = np.array(validator_instance.scores)
     if len(scores) == 0:
@@ -382,16 +382,14 @@ def display_score_histogram(validator_instance, bins=20, width=60):
 
     hist, bin_edges = np.histogram(scores, bins=bins)
     max_count = np.max(hist)
-    bt.logging.trace(f"\033[1;36m=== SCORE HISTOGRAM ({bins} bins) ===\033[0m")
+    bt.logging.trace(f"=== SCORE HISTOGRAM ({bins} bins) ===")
     for i in range(bins):
-        left = bin_edges[i]
-        right = bin_edges[i+1]
+        center = (bin_edges[i] + bin_edges[i+1]) / 2
         count = hist[i]
         bar = '█' * int(width * count / max_count) if max_count > 0 else ''
-        bt.logging.trace(f"{left:7.3f} - {right:7.3f} | {bar} {count}")
-
+        # Example: 0.02 | ███ 3
+        bt.logging.trace(f"{center:5.2f} | {bar:<{width}} {count}")
     bt.logging.trace(f"Min: {scores.min():.4f}, Max: {scores.max():.4f}, Mean: {scores.mean():.4f}, Std: {scores.std():.4f}")
-
 
 
 def run_complete_score_analysis(validator_instance):
