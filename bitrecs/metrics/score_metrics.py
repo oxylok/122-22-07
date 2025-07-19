@@ -8,7 +8,7 @@ def display_normalized_analysis(validator_instance):
     try:
         normalized_scores = validator_instance.get_normalized_scores()
         
-        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS (Used for Chain) ===\033[0m")
+        bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS ===\033[0m")
         
         raw_active = validator_instance.scores
         if len(raw_active) > 0:

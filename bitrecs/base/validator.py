@@ -454,7 +454,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             self.bad_set_count += 1
                             bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
                             bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
-                            self.update_successful_scores(rewards, chosen_uids)
+                            #self.update_successful_scores(rewards, chosen_uids)
                             synapse_with_event.event.set()
                             continue
                         
@@ -786,9 +786,11 @@ class BaseValidatorNeuron(BaseNeuron):
     def get_normalized_scores(self):
         """Get normalized and transformed scores for weight setting"""
         # Normalize to sum to 1
-        sum_scores = np.sum(self.scores)
+        epsilon = 1e-3  # Small value to stabilize normalization
+        adjusted_scores = self.scores + epsilon
+        sum_scores = np.sum(adjusted_scores)
         if sum_scores > 0:
-            normalized = self.scores / sum_scores
+            normalized = adjusted_scores / sum_scores
         else:
             normalized = np.ones_like(self.scores) / len(self.scores)
         
