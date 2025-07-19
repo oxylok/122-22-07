@@ -12,9 +12,14 @@ def display_normalized_analysis(validator_instance):
         
         raw_active = validator_instance.scores
         if len(raw_active) > 0:
-            bt.logging.info(f"Raw score range: {np.min(raw_active):.6f} - {np.max(raw_active):.6f}")
-            raw_ratio = np.max(raw_active) / np.min(raw_active)
-            bt.logging.info(f"Raw score ratio: {raw_ratio:.2f}")
+            min_score = np.min(raw_active)
+            max_score = np.max(raw_active)
+            bt.logging.info(f"Raw score range: {min_score:.6f} - {max_score:.6f}")
+            if min_score > 0:
+                raw_ratio = max_score / min_score
+                bt.logging.info(f"Raw score ratio: {raw_ratio:.2f}")
+            else:
+                bt.logging.info("Raw score ratio: inf (min score is zero)")
             bt.logging.info(f"Active scores: {len(raw_active)} (filtered from {len(validator_instance.scores)})")
         else:
             bt.logging.warning("No significant raw scores found")
