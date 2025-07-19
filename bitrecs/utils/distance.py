@@ -333,15 +333,15 @@ def display_rec_matrix(
                     output.append(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
     
     # Add scheme-specific legend
-    output.append(f"\nLegend ({color_scheme.value}):")
+    #output.append(f"\nLegend ({color_scheme.value}):")
     output.append(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
     output.append(f"{colors['strong']}>= 0.5\033[0m "
                  f"{colors['medium']}>= 0.3\033[0m "
                  f"{colors['weak']}>= 0.1\033[0m "
                  f"{colors['minimal']}> 0.0\033[0m: Match strength")
     
-    output.append("\nNote: Lower distances between sets (real) vs (random)")
-    output.append("      indicate better recommendation quality")
+    # output.append("\nNote: Lower distances between sets (real) vs (random)")
+    # output.append("      indicate better recommendation quality")
     output.append("=" * 40)
     
     return "\n".join(output)
