@@ -208,7 +208,7 @@ class ApiServer:
         tempo_batch_index = self.validator.tempo_batch_index or 0
         batches_completed = self.validator.batches_completed or 0
         bad_set_count = self.validator.bad_set_count or 0
-        coverage = (len(batch_seen_uids) / len(total_uids)) * 100 if len(total_uids) > 0 else 0
+        coverage = (len(batch_seen_uids) / len(total_uids)) * 100 if len(total_uids) > 0 else 0        
 
         current_block = self.validator.block
         netuid = self.validator.config.netuid
@@ -216,6 +216,8 @@ class ApiServer:
         minutes_to_next_block = blocks_until_next_epoch * 12 / 60
 
         metrics = {
+            "tempo": CONST.EPOCH_TEMPO,
+            "batch_size": CONST.QUERY_BATCH_SIZE,
             "total_uids": sorted(total_uids),
             "suspect_miners": sorted(suspect_miners),
             "batch_seen_uids": sorted(batch_seen_uids),
@@ -229,8 +231,7 @@ class ApiServer:
             "current_epoch": current_epoch,
             "blocks_until_next_epoch": blocks_until_next_epoch,
             "epoch_start_block": epoch_start_block,
-            "minutes_to_next_epoch": round(minutes_to_next_block, 2),
-            "tempo": CONST.EPOCH_TEMPO
+            "minutes_to_next_epoch": round(minutes_to_next_block, 2)
         }
 
         return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "ts": ts, "status": "OK", "metrics": metrics})
