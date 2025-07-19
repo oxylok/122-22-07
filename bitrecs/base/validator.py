@@ -181,7 +181,8 @@ class BaseValidatorNeuron(BaseNeuron):
         self.last_tempo = None
         self.tempo_batch_index = 0
         self.batches_completed = 0
-        self.update_total_uids()
+
+        #self.update_total_uids()
         
         write_node_info(
             network=self.network,

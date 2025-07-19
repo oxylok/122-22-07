@@ -341,7 +341,9 @@ async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
     with Validator() as validator:
         validator_instance = validator
-        start_time = time.time()      
+        start_time = time.time()
+        await validator.cooldown_sync()
+        validator.update_total_uids()
         while True:
             tasks = [
                 asyncio.create_task(validator.cooldown_sync()),
