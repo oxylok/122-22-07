@@ -284,11 +284,12 @@ class BaseValidatorNeuron(BaseNeuron):
 
 
     async def concurrent_forward(self):
-        coroutines = [
-            self.forward()
-            for _ in range(self.config.neuron.num_concurrent_forwards)
-        ]
-        await asyncio.gather(*coroutines)
+        # coroutines = [
+        #     self.forward()
+        #     for _ in range(self.config.neuron.num_concurrent_forwards)
+        # ]
+        # await asyncio.gather(*coroutines)
+        raise NotImplemented("concurrent_forward not implemented")
 
 
     async def analyze_similar_requests(self, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
@@ -383,7 +384,30 @@ class BaseValidatorNeuron(BaseNeuron):
         except Exception as e:
             bt.logging.error(f"Failed to cleanup connections: {e}")
             pass
-        
+    
+
+    def filter_responses(self, responses: List[BitrecsRequest]) -> List[BitrecsRequest]:
+        """Filter responses based on various criteria."""
+        filtered = []
+        for response in responses:
+            if not response.is_success:
+                bt.logging.warning(f"Response not successful: {response.axon.hotkey[:8]}")
+                continue
+            if response.miner_hotkey in self.banned_hotkeys:
+                bt.logging.warning(f"Response from cooldown hotkey: {response.axon.hotkey[:8]}")
+                continue
+            if response.axon.ip in self.banned_ips:
+                bt.logging.warning(f"Response from cooldown IP: {response.axon.ip}")
+                continue
+            if response.dendrite.hotkey != self.config.wallet.hotkey.ss58_address:
+                bt.logging.warning(f"Response from different hotkey: {response.dendrite.hotkey} != {self.config.wallet.hotkey.ss58_address}")
+                continue
+            if not response.dendrite.signature:
+                bt.logging.warning(f"Response missing signature: {response.axon.hotkey[:8]}")
+                continue
+            filtered.append(response)
+        return filtered
+    
 
     async def main_loop(self):
         """Main loop for the validator."""
@@ -460,8 +484,9 @@ class BaseValidatorNeuron(BaseNeuron):
                                 continue
 
                         et = time.perf_counter()
-                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                       
-                        
+                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
+                        responses = self.filter_responses(responses)
+                        bt.logging.trace(f"Filtered to {len(responses)} responses")
                         rewards = get_rewards(ground_truth=api_request,
                                               responses=responses, 
                                               actions=self.user_actions,
