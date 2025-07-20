@@ -399,8 +399,8 @@ class BaseValidatorNeuron(BaseNeuron):
             if response.axon.ip in self.banned_ips:
                 bt.logging.warning(f"Response from cooldown IP: {response.axon.ip}")
                 continue
-            if response.dendrite.hotkey != self.config.wallet.hotkey.ss58_address:
-                bt.logging.warning(f"Response from different hotkey: {response.dendrite.hotkey} != {self.config.wallet.hotkey.ss58_address}")
+            if response.dendrite.hotkey != self.wallet.hotkey.ss58_address:
+                bt.logging.warning(f"Response from different hotkey: {response.dendrite.hotkey} != {self.wallet.hotkey.ss58_address}")
                 continue
             if not response.dendrite.signature:
                 bt.logging.warning(f"Response missing signature: {response.axon.hotkey[:8]}")
