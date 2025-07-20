@@ -96,7 +96,8 @@ async def api_forward(synapse: BitrecsRequest) -> BitrecsRequest:
             results=[""],
             models_used=[""],
             miner_uid="",
-            miner_hotkey=""
+            miner_hotkey="",
+            miner_signature=None
         )
     )
     API_QUEUE.put(synapse_with_event)
@@ -523,7 +524,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         #     bt.logging.error("\033[31mResponse verification failed, skipping this batch\033[0m")
                         #     synapse_with_event.event.set()
                         #     continue
-                        
+
                         # Test Verify
                         for r in responses:
                             if not self.verify_response(r):

@@ -246,7 +246,7 @@ class Miner(BaseMinerNeuron):
             models_used=[self.model],
             miner_uid=str(self.uid),
             miner_hotkey=self.wallet.hotkey.ss58_address,
-            miner_signature=None
+            miner_signature=""
         )
 
         payload_hash = self.sign_response(output_synapse)
