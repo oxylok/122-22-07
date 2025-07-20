@@ -62,43 +62,5 @@ async def forward(self, pr: BitrecsRequest = None):
         pr (:obj:`bitrecs.protocol.BitrecsRequest`): The end user request object to be sent to the network (from API)
 
     """
-    bt.logging.info(f"VALIDATOR FORWARD Forwarding request: {pr}")
-    
-    num_results = 0
-    if pr is not None: #API REQUEST
-        raise NotImplementedError("API requests not implemented here")
-     
-    else:
-        num_results = 5
-        next_request = get_bitrecs_dummy_request(num_results)
-
-    num_recs = next_request.num_results
-    miner_uids = get_random_miner_uids(self,  k=self.sample_size)    
-
-    bt.logging.info(f"** UID uids: {miner_uids}")
-    start_time = time.time()
-
-    # The dendrite client queries the network.
-    responses = await self.dendrite(        
-        axons=[self.metagraph.axons[uid] for uid in miner_uids],
-        synapse=next_request,
-        deserialize=False,
-    )
-    end_time = time.time()
-    wall_time = end_time - start_time
-    bt.logging.info(f"forward Wall time: {wall_time}")
-    
-    bt.logging.info(f"Received {len(responses)} responses: {responses}")
-    
-    # Adjust the scores based on responses from miners.
-    rewards = get_rewards(num_recs=num_recs, 
-                          ground_truth=next_request,
-                           responses=responses)    
-    
-    if not len(miner_uids) == len(responses) == len(rewards):
-        bt.logging.error(f"MISMATCH Error in rewards: {rewards}, responses: {responses}, miner_uids: {miner_uids}")
-
-    bt.logging.info(f"Scored responses: {rewards}")
-    
-    #TODO synthetics disabled for now
-    #self.update_scores(rewards, miner_uids)
+    bt.logging.info(f"VALIDATOR FORWARD Forwarding request: {pr}")    
+    raise NotImplementedError("The forward function is not implemented")

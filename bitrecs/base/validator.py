@@ -16,6 +16,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+from collections import Counter
 import os
 import copy
 import numpy as np
@@ -386,28 +387,24 @@ class BaseValidatorNeuron(BaseNeuron):
             pass
     
 
-    def filter_responses(self, responses: List[BitrecsRequest]) -> List[BitrecsRequest]:
-        """Filter responses based on various criteria."""
-        filtered = []
-        for response in responses:
-            if not response.is_success:
-                bt.logging.warning(f"Response not successful: {response.axon.hotkey[:8]}")
-                continue
-            if response.miner_hotkey in self.banned_hotkeys:
-                bt.logging.warning(f"Response from cooldown hotkey: {response.axon.hotkey[:8]}")
-                continue
-            if response.axon.ip in self.banned_ips:
-                bt.logging.warning(f"Response from cooldown IP: {response.axon.ip}")
-                continue
-            if response.dendrite.hotkey != self.wallet.hotkey.ss58_address:
-                bt.logging.warning(f"Response from different hotkey: {response.dendrite.hotkey} != {self.wallet.hotkey.ss58_address}")
-                continue
-            if not response.dendrite.signature:
-                bt.logging.warning(f"Response missing signature: {response.axon.hotkey[:8]}")
-                continue
-            filtered.append(response)
-        return filtered
-    
+    def check_response_structure(self, responses: List[BitrecsRequest]) -> bool:
+        """Check if all responses have the expected structure."""
+        if not responses:
+            bt.logging.error("No responses to check")
+            return False
+        hotkeys = [r.dendrite.hotkey for r in responses]
+        hotkey_counts = Counter(hotkeys)
+        bt.logging.trace(f"Dendrite hotkey counts: {hotkey_counts}")
+        if len(hotkey_counts) != 1:
+            bt.logging.warning(f"Multiple unique dendrite.hotkeys found: {list(hotkey_counts.keys())}")
+            return False
+        uuids = [r.dendrite.uuid for r in responses]
+        uuid_counts = Counter(uuids)
+        if len(uuid_counts) != 1:
+            bt.logging.warning(f"Multiple unique dendrite UUIDs found: {list(uuid_counts.keys())}")
+            return False
+        return True
+
 
     async def main_loop(self):
         """Main loop for the validator."""
@@ -485,10 +482,14 @@ class BaseValidatorNeuron(BaseNeuron):
 
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
-                        responses = self.filter_responses(responses)
-                        bt.logging.trace(f"Filtered to {len(responses)} responses")
-                        rewards = get_rewards(ground_truth=api_request,
-                                              responses=responses, 
+                        if not self.check_response_structure(responses):
+                            bt.logging.error("\033[31mResponse structure check failed, skipping this batch\033[0m")
+                            synapse_with_event.event.set()
+                            continue
+
+                        rewards = get_rewards(self.wallet.hotkey.ss58_address,
+                                              ground_truth=api_request,
+                                              responses=responses,
                                               actions=self.user_actions,
                                               r_limit=self.r_limit,
                                               batch_size=CONST.QUERY_BATCH_SIZE)

@@ -139,6 +139,7 @@ def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
 
 
 def reward(    
+    validator_hotkey: str,
     ground_truth: BitrecsRequest,
     catalog_validator: CatalogValidator, 
     response: BitrecsRequest,
@@ -160,6 +161,13 @@ def reward(
     
     try:
         score = 0.0
+        if response.dendrite.hotkey != validator_hotkey:
+            bt.logging.error(f"Response from different hotkey: {response.dendrite.hotkey} != {validator_hotkey}")
+            bt.logging.error(f"Miner hotkey: {response.axon.hotkey}")
+            return 0.0
+        if not response.dendrite.signature:
+            bt.logging.error(f"Response missing signature: {response.axon.hotkey[:8]}")
+            return 0.0
         if response.is_timeout:
             bt.logging.error(f"{response.axon.hotkey[:8]} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
@@ -238,7 +246,8 @@ def reward(
         return 0.0
 
 
-def get_rewards(   
+def get_rewards(
+    hotkey: str,
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None,
@@ -312,7 +321,7 @@ def get_rewards(
 
     rewards = []
     for i, response in enumerate(responses):        
-        base_reward = reward(ground_truth, catalog_validator, response, actions, r_limit)        
+        base_reward = reward(hotkey, ground_truth, catalog_validator, response, actions, r_limit)        
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
