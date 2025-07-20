@@ -179,10 +179,13 @@ def reward(
             return 0.0
         if not response.miner_uid or not response.miner_hotkey:
             bt.logging.error(f"{response.axon.hotkey} is not reporting correctly (missing ids)")
-            return 0.0        
+            return 0.0
+        if response.miner_hotkey.lower() != response.axon.hotkey.lower():
+            bt.logging.error(f"{response.miner_uid} hotkey mismatch: {response.miner_hotkey} != {response.axon.hotkey}")
+            return 0.0
         if len(response.results) != ground_truth.num_results:
             bt.logging.error(f"{response.miner_uid} num_recs mismatch, expected {ground_truth.num_results} but got {len(response.results)}")
-            return 0.0       
+            return 0.0
         if len(response.models_used) != 1:
             bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey[:8]}")
             return 0.0

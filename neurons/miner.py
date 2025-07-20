@@ -17,12 +17,16 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+
 import sys
 import time
 import typing
 import asyncio
 import json
 import json_repair
+import hashlib
+from dotenv import load_dotenv
+load_dotenv()
 import bittensor as bt
 import bitrecs.utils.constants as CONST
 from typing import List
@@ -35,8 +39,6 @@ from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.utils.runtime import execute_periodically
 from bitrecs.utils.uids import best_uid
 from bitrecs.utils.version import LocalMetadata
-from dotenv import load_dotenv
-load_dotenv()
 
 
 async def do_work(user_prompt: str,
@@ -226,7 +228,10 @@ class Miner(BaseMinerNeuron):
             except Exception as e:
                 bt.logging.error(f"Failed to parse LLM result: {item}, error: {e}")
                 continue
-        
+
+        if len(final_results) != num_recs:
+            raise ValueError(f"Expected {num_recs} results, but got {len(final_results)}. Adjusting num_results.")
+      
         output_synapse=BitrecsRequest(
             name=synapse.name, 
             axon=synapse.axon,
@@ -240,13 +245,36 @@ class Miner(BaseMinerNeuron):
             results=final_results,
             models_used=[self.model],
             miner_uid=str(self.uid),
-            miner_hotkey=self.wallet.hotkey.ss58_address
+            miner_hotkey=self.wallet.hotkey.ss58_address,
+            miner_signature=None
         )
-        
+
+        payload_hash = self.sign_response(output_synapse)
+        signature = self.wallet.hotkey.sign(payload_hash)
+        output_synapse.miner_signature = signature.hex()
+
         bt.logging.info(f"MINER {self.uid} FORWARD PASS RESULT -> {output_synapse}")
         self.total_request_in_interval += 1
         return output_synapse
-        
+    
+
+    def sign_response(self, output_synapse):
+        payload = {
+            "name": output_synapse.name,
+            "axon_hotkey": output_synapse.axon.hotkey,
+            "dendrite_hotkey": output_synapse.dendrite.hotkey,
+            "created_at": output_synapse.created_at,
+            "num_results": output_synapse.num_results,
+            "query": output_synapse.query,
+            "site_key": output_synapse.site_key,
+            "results": output_synapse.results,
+            "models_used": output_synapse.models_used,
+            "miner_uid": output_synapse.miner_uid,
+            "miner_hotkey": output_synapse.miner_hotkey,
+        }
+        payload_str = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(payload_str.encode("utf-8")).digest()
+
 
     async def blacklist(
         self, synapse: BitrecsRequest

@@ -16,24 +16,27 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from collections import Counter
+
 import os
 import copy
-import numpy as np
+import json
+import time
+import wandb
+import anyio
+import hashlib
 import asyncio
 import argparse
 import threading
 import bittensor as bt
-import time
+import numpy as np
 import traceback
-import anyio.to_thread
-import wandb
-import anyio
 import subprocess
+import anyio.to_thread
 from dotenv import load_dotenv
 load_dotenv()
 from random import SystemRandom
 safe_random = SystemRandom()
+from collections import Counter
 from typing import List, Union, Optional
 from dataclasses import dataclass
 from queue import SimpleQueue, Empty
@@ -403,7 +406,35 @@ class BaseValidatorNeuron(BaseNeuron):
         if len(uuid_counts) != 1:
             bt.logging.warning(f"Multiple unique dendrite UUIDs found: {list(uuid_counts.keys())}")
             return False
-        return True
+        return True    
+
+
+    def verify_response(self, response: BitrecsRequest) -> bool:       
+        try:
+            payload = {
+                "name": response.name,
+                "axon_hotkey": response.axon.hotkey,
+                "dendrite_hotkey": response.dendrite.hotkey,
+                "created_at": response.created_at,
+                "num_results": response.num_results,
+                "query": response.query,
+                "site_key": response.site_key,
+                "results": response.results,
+                "models_used": response.models_used,
+                "miner_uid": response.miner_uid,
+                "miner_hotkey": response.miner_hotkey,
+            }
+            payload_str = json.dumps(payload, sort_keys=True)
+            payload_hash = hashlib.sha256(payload_str.encode("utf-8")).digest()
+            signature = bytes.fromhex(response.miner_signature)
+            miner_hotkey = response.miner_hotkey
+            is_valid = bt.Keypair(ss58_address=miner_hotkey).verify(payload_hash, signature)
+            if not is_valid:
+                bt.logging.warning(f"Signature verification failed for miner {miner_hotkey}")
+            return is_valid
+        except Exception as e:
+            bt.logging.error(f"Error verifying response signature: {e}")
+            return False
 
 
     async def main_loop(self):
@@ -486,6 +517,22 @@ class BaseValidatorNeuron(BaseNeuron):
                             bt.logging.error("\033[31mResponse structure check failed, skipping this batch\033[0m")
                             synapse_with_event.event.set()
                             continue
+
+                        #test
+                        # if not all(self.verify_response(r) for r in responses):
+                        #     bt.logging.error("\033[31mResponse verification failed, skipping this batch\033[0m")
+                        #     synapse_with_event.event.set()
+                        #     continue
+                        
+                        # Test Verify
+                        for r in responses:
+                            if not self.verify_response(r):
+                                bt.logging.error(f"\033[31mResponse verification failed for miner {r.miner_uid}, skipping this response\033[0m")
+                                synapse_with_event.event.set()
+                                continue
+                            else:
+                                bt.logging.trace(f"Verified response from miner {r.miner_uid}:{r.miner_hotkey}")
+
 
                         rewards = get_rewards(self.wallet.hotkey.ss58_address,
                                               ground_truth=api_request,
