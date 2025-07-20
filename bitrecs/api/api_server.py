@@ -171,7 +171,8 @@ class ApiServer:
             'results': request.results,
             'models_used': request.models_used,
             'miner_uid': request.miner_uid,
-            'miner_hotkey': request.miner_hotkey
+            'miner_hotkey': request.miner_hotkey,
+            'miner_signature': request.miner_signature
         }
 
         body_str = json.dumps(d, sort_keys=True)
