@@ -97,6 +97,9 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
 
 def verify_response_signature(response: BitrecsRequest) -> bool:
     try:
+        if not response.miner_signature:
+            bt.logging.error("Response missing miner_signature for verification.")
+            return False
         payload = {
             "name": response.name,
             "axon_hotkey": response.axon.hotkey,
