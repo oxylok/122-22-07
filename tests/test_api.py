@@ -166,7 +166,7 @@ def test_good_server_time_validator():
         return
     
     assert response.status_code == 200
-    st = response.json()["st"]
+    st = response.json()["ts"]
     assert st > 0
     current_time = int(time.time())
     over_5_minutes = current_time - st > 300

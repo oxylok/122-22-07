@@ -21,20 +21,50 @@ import pydantic
 import bittensor as bt
 
 class BitrecsRequest(bt.Synapse):
-    created_at: str | None
-    user: str | None
+    created_at: str | None = pydantic.Field(
+        None,
+        description="Timestamp of the request creation"
+    )
+    user: str | None = pydantic.Field(
+        None,
+        description="Ecommerce profile for the request"
+    )
     num_results: int = pydantic.Field(
         0,
         description="Expected number of recs",
     )
-    query: str | None
-    context: str | None
-    site_key: str | None
-    results: list | None
-    models_used: list | None
-    miner_uid: str | None
-    miner_hotkey: str | None
-    miner_signature: str | None
+    query: str | None = pydantic.Field(
+        None,
+        description="The query sku",
+    )
+    context: str | None = pydantic.Field(
+        None,
+        description="The store catalog as a json array",
+    )    
+    site_key: str | None = pydantic.Field(
+        None,
+        description="Batch ID for grouping requests (this is not a sensitive value)"
+    )
+    results: list | None = pydantic.Field(
+        None,
+        description="List of miner recommendations"
+    )    
+    models_used: list | None = pydantic.Field(
+        None,
+        description="List of miner models used to generate the results (exepect 1 value only)"
+    )
+    miner_uid: str | None = pydantic.Field(
+        None,
+        description="Miner UID"
+    )
+    miner_hotkey: str | None = pydantic.Field(
+        None,
+        description="Miner Hotkey"
+    )
+    miner_signature: str | None = pydantic.Field(
+        None,
+        description="Signature of the miner's hotkey over the payload",
+    )
     
 
     def to_dict(self) -> dict:
