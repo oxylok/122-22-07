@@ -19,11 +19,9 @@
 
 import os
 import copy
-import json
 import time
 import wandb
 import anyio
-import hashlib
 import asyncio
 import argparse
 import threading
@@ -294,7 +292,7 @@ class BaseValidatorNeuron(BaseNeuron):
         #     for _ in range(self.config.neuron.num_concurrent_forwards)
         # ]
         # await asyncio.gather(*coroutines)
-        raise NotImplemented("concurrent_forward not implemented")
+        raise NotImplementedError("concurrent_forward not implemented")
 
 
     async def analyze_similar_requests(self, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
@@ -441,8 +439,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     if synapse_with_event is not None and api_enabled: #API request
                         bt.logging.info("** Processing synapse from API server **")                        
                         bt.logging.info(f"Queue Size: {API_QUEUE.qsize()}")
-
-                        # Validate the input synapse
+                        
                         if not validate_br_request(synapse_with_event.input_synapse):
                             bt.logging.error("Request failed Validation, skipped.")
                             synapse_with_event.event.set()
@@ -450,7 +447,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         chosen_uids : list[int] = await self.get_next_batch()
                         if len(chosen_uids) < CONST.MIN_QUERY_BATCH_SIZE:
-                            bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity \033[0m")
+                            bt.logging.error("\033[31m API Request- Low active miners, skipping - check your connectivity\033[0m")
                             synapse_with_event.event.set()
                             continue
                         bt.logging.trace(f"chosen_uids: {chosen_uids}")
@@ -479,7 +476,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 run_async=True
                             )
                             any_success = any([r for r in responses if r.is_success])
-                            if not any_success: #don't penalize the entire battery, just exit
+                            if not any_success: #don't penalize the entire set, just exit
                                 bt.logging.error("\033[1;31mRETRY FAILED - NO SUCCESSFUL RESPONSES\033[0m")
                                 synapse_with_event.event.set()
                                 continue

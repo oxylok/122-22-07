@@ -200,10 +200,7 @@ class Miner(BaseMinerNeuron):
         finally:
             et = time.time()
             bt.logging.info(f"{self.model} Query - Elapsed Time: \033[1;32m {et-st} \033[0m")
-
-        utc_now = datetime.now(timezone.utc)
-        created_at = utc_now.strftime("%Y-%m-%dT%H:%M:%S")
-
+      
         #Do some cleanup - schema is validated in the reward function
         final_results = []
         for item in results:
@@ -230,10 +227,12 @@ class Miner(BaseMinerNeuron):
                 continue
 
         if len(final_results) != num_recs:
-            raise ValueError(f"Expected {num_recs} results, but got {len(final_results)}. Adjusting num_results.")
+            bt.logging.error(f"Expected {num_recs} results, but got {len(final_results)}")
       
+        utc_now = datetime.now(timezone.utc)
+        created_at = utc_now.strftime("%Y-%m-%dT%H:%M:%S")
         output_synapse=BitrecsRequest(
-            name=synapse.name, 
+            name=synapse.name,
             axon=synapse.axon,
             dendrite=synapse.dendrite,
             created_at=created_at,
@@ -248,7 +247,6 @@ class Miner(BaseMinerNeuron):
             miner_hotkey=self.wallet.hotkey.ss58_address,
             miner_signature=""
         )
-
         payload_hash = self.sign_response(output_synapse)
         signature = self.wallet.hotkey.sign(payload_hash)
         output_synapse.miner_signature = signature.hex()
@@ -258,7 +256,7 @@ class Miner(BaseMinerNeuron):
         return output_synapse
     
 
-    def sign_response(self, output_synapse):
+    def sign_response(self, output_synapse: BitrecsRequest) -> bytes:
         payload = {
             "name": output_synapse.name,
             "axon_hotkey": output_synapse.axon.hotkey,
