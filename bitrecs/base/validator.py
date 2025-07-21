@@ -501,7 +501,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
-                            continue                        
+                            continue
                         
                         failure_rate = np.sum(rewards == 0) / len(rewards)
                         if failure_rate >= CONST.BATCH_FAILURE_THRESHOLD:
@@ -513,7 +513,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 bt.logging.warning("\033[33mOrphaned miners!\033[0m")
                                 for uid, reward in orphans:
                                     self.batch_orphan_uids.add(uid)
-                                    bt.logging.warning(f"Orphan UID {uid}: reward={reward:.4f}")
+                                    bt.logging.warning(f"Orphan UID {uid}: potential reward={reward:.4f}")
                                 if CONST.REWARD_ORPHANS:
                                     self.update_successful_scores(rewards, chosen_uids)
                             self.decay_suspects()

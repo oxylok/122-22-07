@@ -16,9 +16,9 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import hashlib
 import math
 import json
+import hashlib
 import traceback
 import numpy as np
 import bittensor as bt
@@ -114,10 +114,7 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
         payload_hash = hashlib.sha256(payload_str.encode("utf-8")).digest()
         signature = bytes.fromhex(response.miner_signature)
         miner_hotkey = response.miner_hotkey
-        is_valid = bt.Keypair(ss58_address=miner_hotkey).verify(payload_hash, signature)
-        if not is_valid:
-            bt.logging.error(f"Error verifying response signature {miner_hotkey}")
-        return is_valid
+        return bt.Keypair(ss58_address=miner_hotkey).verify(payload_hash, signature)
     except Exception as e:
         bt.logging.error(f"Error verifying response signature: {e}")
         return False
@@ -200,7 +197,7 @@ def reward(
         if response.is_timeout:
             bt.logging.error(f"{response.axon.hotkey[:8]} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
-        if response.is_failure:            
+        if response.is_failure:
             bt.logging.error(f"{response.axon.hotkey[:8]} is_failure is True, status: {response.dendrite.status_code}")
             return 0.0
         if not response.is_success:
@@ -222,10 +219,10 @@ def reward(
             bt.logging.error(f"{response.miner_uid} has invalid models used: {response.miner_hotkey[:8]}")
             return 0.0
         if response.axon.process_time < r_limit:
-            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} axon time: {response.axon.process_time} < {r_limit} \033[0m")
+            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} axon time: {response.axon.process_time} < {r_limit}\033[0m")
             return 0.0
         if response.dendrite.process_time < r_limit:
-            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} dendrite time: {response.dendrite.process_time} < {r_limit} \033[0m")
+            bt.logging.error(f"\033[33m WARNING Miner {response.miner_uid} dendrite time: {response.dendrite.process_time} < {r_limit}\033[0m")
             return 0.0
         if response.query != ground_truth.query:
             bt.logging.error(f"{response.miner_uid} query mismatch: {response.query} != {ground_truth.query}")
