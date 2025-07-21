@@ -16,6 +16,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import hashlib
 import math
 import json
 import traceback
@@ -94,6 +95,34 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
     return count == len(results)
 
 
+def verify_response_signature(response: BitrecsRequest) -> bool:
+    try:
+        payload = {
+            "name": response.name,
+            "axon_hotkey": response.axon.hotkey,
+            "dendrite_hotkey": response.dendrite.hotkey,
+            "created_at": response.created_at,
+            "num_results": response.num_results,
+            "query": response.query,
+            "site_key": response.site_key,
+            "results": response.results,
+            "models_used": response.models_used,
+            "miner_uid": response.miner_uid,
+            "miner_hotkey": response.miner_hotkey,
+        }
+        payload_str = json.dumps(payload, sort_keys=True)
+        payload_hash = hashlib.sha256(payload_str.encode("utf-8")).digest()
+        signature = bytes.fromhex(response.miner_signature)
+        miner_hotkey = response.miner_hotkey
+        is_valid = bt.Keypair(ss58_address=miner_hotkey).verify(payload_hash, signature)
+        if not is_valid:
+            bt.logging.error(f"Error verifying response signature {miner_hotkey}")
+        return is_valid
+    except Exception as e:
+        bt.logging.error(f"Error verifying response signature: {e}")
+        return False
+
+
 def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
     """
     Reward miners who generate positive actions on ecommerce sites
@@ -163,7 +192,7 @@ def reward(
         score = 0.0
         if response.dendrite.hotkey != validator_hotkey:
             bt.logging.error(f"Response from different hotkey: {response.dendrite.hotkey} != {validator_hotkey}")
-            bt.logging.error(f"Miner hotkey: {response.axon.hotkey}")
+            bt.logging.error(f"Miner hotkey: {response.axon.hotkey[:8]}")
             return 0.0
         if not response.dendrite.signature:
             bt.logging.error(f"Response missing signature: {response.axon.hotkey[:8]}")
@@ -175,10 +204,13 @@ def reward(
             bt.logging.error(f"{response.axon.hotkey[:8]} is_failure is True, status: {response.dendrite.status_code}")
             return 0.0
         if not response.is_success:
-            bt.logging.error(f"{response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
+            bt.logging.error(f"{response.axon.hotkey[:8]} is_success is False, status: {response.dendrite.status_code}")
+            return 0.0
+        if not verify_response_signature(response):
+            bt.logging.error(f"{response.axon.hotkey[:8]} response signature verification failed")
             return 0.0
         if not response.miner_uid or not response.miner_hotkey:
-            bt.logging.error(f"{response.axon.hotkey} is not reporting correctly (missing ids)")
+            bt.logging.error(f"{response.axon.hotkey[:8]} is not reporting correctly (missing ids)")
             return 0.0
         if response.miner_hotkey.lower() != response.axon.hotkey.lower():
             bt.logging.error(f"{response.miner_uid} hotkey mismatch: {response.miner_hotkey} != {response.axon.hotkey}")
@@ -250,7 +282,7 @@ def reward(
 
 
 def get_rewards(
-    hotkey: str,
+    validator_hotkey: str,
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None,
@@ -324,7 +356,7 @@ def get_rewards(
 
     rewards = []
     for i, response in enumerate(responses):        
-        base_reward = reward(hotkey, ground_truth, catalog_validator, response, actions, r_limit)        
+        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, actions, r_limit)        
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
