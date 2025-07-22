@@ -1,5 +1,5 @@
-import json
 import os
+import json
 import logging
 import bittensor as bt
 import pandas as pd
@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 from typing_extensions import List
 from logging.handlers import RotatingFileHandler
 from bitrecs.protocol import BitrecsRequest
+from bitrecs.utils.constants import SCHEMA_UPDATE_CUTOFF
 
 EVENTS_LEVEL_NUM = 38
 DEFAULT_LOG_BACKUP_COUNT = 10
-SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 5, tzinfo=timezone.utc)
+#SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 21, tzinfo=timezone.utc)
 TIMESTAMP_FILE = 'timestamp.txt'
 NODE_INFO_FILE = 'node_info.json'
 
@@ -45,15 +46,16 @@ def setup_events_logger(full_path, events_retention_size):
 
 
 
-def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit) -> None:
+def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit, epoch_length) -> None:
     """Write node information for the auto-updater"""
-    #node_info_file = 'node_info.json'    
+    #node_info_file = 'node_info.json'
     node_info = {
         "network": network,
         "uid": uid,
         "hotkey": hotkey,
         "neuron_type": neuron_type,
         "sample_size": sample_size,
+        "epoch_length": epoch_length,
         "v_limit": v_limit,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -147,30 +149,40 @@ def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> Non
     conn.commit()
 
 
-def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> None:
+def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], elected: BitrecsRequest) -> None:
     try:
         frames = []
         for response in responses:
             if not isinstance(response, BitrecsRequest):
                 bt.logging.warning(f"Skipping invalid response type: {type(response)}")
                 continue
+            response.context = ""
+            response.user = ""
             data = {
                 **response.to_headers(),
                 **response.to_dict()
             }
-            df = pd.json_normalize(data)          
+            df = pd.json_normalize(data)
             frames.append(df)
         final = pd.concat(frames)
 
+        batch_elected_uid = elected.miner_uid if elected and elected.miner_uid else ""
+        batch_elected_hotkey = elected.axon.hotkey if elected and elected.axon else ""
+        batch_elected_process_time = elected.axon.process_time if elected and elected.axon else 0
+
         if len(final) > 0:
             utc_now = datetime.now(timezone.utc)
-            created_at = utc_now.strftime("%Y-%m-%d %H:%M:%S")            
-            db_path = os.path.join(os.getcwd(), 'miner_responses.db')            
+            created_at = utc_now.strftime("%Y-%m-%d %H:%M:%S")
+            db_path = os.path.join(os.getcwd(), 'miner_responses.db')
             conn = sqlite3.connect(db_path)
             try:
                 final['step'] = step
-                final['created_at'] = created_at                
-                dtype_dict = {col: 'TEXT' for col in final.columns}                
+                final['created_at'] = created_at
+                final['batch_elected_uid'] = batch_elected_uid
+                final['batch_elected_hotkey'] = batch_elected_hotkey
+                final['batch_elected_process_time'] = batch_elected_process_time
+
+                dtype_dict = {col: 'TEXT' for col in final.columns}
                 cursor = conn.cursor()
                 
                 # Check if table exists

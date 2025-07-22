@@ -77,6 +77,9 @@ class PromptFactory:
         else:
             self.profile = profile
             self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
+            if not self.persona or self.persona not in PromptFactory.PERSONAS:
+                bt.logging.error(f"Invalid persona: {self.persona}. Must be one of {list(PromptFactory.PERSONAS.keys())}")
+                self.persona = "ecommerce_retail_store_manager"
             self.cart = self._sort_cart_keys(profile.cart)
             self.cart_json = json.dumps(self.cart, separators=(',', ':'))
             self.orders = profile.orders

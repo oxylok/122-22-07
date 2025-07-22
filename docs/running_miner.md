@@ -2,7 +2,7 @@
 
 This guide provides detailed instructions for setting up and configuring the Bitrecs miner on **Ubuntu 24.10 LTS**. The Bitrecs subnet is designed to be accessible to miners with varying computational resources, making it suitable for home enthusiasts, local mining operations, and industrial-scale farms.
 
-For quick deployment, you can use the installation script, otherwise follow the manual guide below. Update your packages before running the install script. 
+For quick deployment, you can use the installation .sh script, otherwise follow the manual guide below. Update your packages before running the install script. 
 ```bash
 sudo apt-get update && sudo apt-get upgrade -y
 curl -sL https://raw.githubusercontent.com/bitrecs/bitrecs-subnet/refs/heads/main/scripts/install_miner.sh | bash
@@ -21,6 +21,8 @@ sudo apt install ufw
 ### Firewall Configuration
 ## UFW Firewall
 Configure the firewall using UFW. These rules allow SSH access and communication on the miner port (8091):
+
+**Warning:** port 22 is NOT required to be open for miners - we have it here to ensure you do not get disconnected if you activate UFW. Port 8091 is bittensor default port you are free to use whichever port you want see --axon.port
 
 ```bash
 sudo ufw allow 22

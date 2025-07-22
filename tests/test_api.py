@@ -1,3 +1,4 @@
+import json
 import os
 os.environ["NEST_ASYNCIO"] = "0"
 import time
@@ -165,7 +166,7 @@ def test_good_server_time_validator():
         return
     
     assert response.status_code == 200
-    st = response.json()["st"]
+    st = response.json()["ts"]
     assert st > 0
     current_time = int(time.time())
     over_5_minutes = current_time - st > 300
@@ -375,3 +376,17 @@ def test_post_node_info():
 def test_trigger_update():
     thing = True
     assert True == thing
+
+
+def test_api_has_metrics():
+    url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/version"
+    headers = {
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    response = requests.get(url, headers=headers)
+    print(response.text)
+    thing = json.loads(response.text)
+    print(json.dumps(thing, indent=2))
+    assert "metrics" in thing
+

@@ -34,6 +34,10 @@ class BitrecsRequest(bt.Synapse):
     models_used: list | None
     miner_uid: str | None
     miner_hotkey: str | None
+    miner_signature: str | None = pydantic.Field(
+        None,
+        description="Signature of the miner's hotkey over the payload",
+    )
     
 
     def to_dict(self) -> dict:
@@ -47,5 +51,6 @@ class BitrecsRequest(bt.Synapse):
             'results': str(self.results) if self.results else None,
             'models_used': str(self.models_used) if self.models_used else None,
             'miner_uid': self.miner_uid,
-            'miner_hotkey': self.miner_hotkey
+            'miner_hotkey': self.miner_hotkey,
+            'miner_signature': self.miner_signature,
         }

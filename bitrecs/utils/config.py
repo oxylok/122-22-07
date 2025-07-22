@@ -85,7 +85,7 @@ def add_args(cls, parser):
         "--neuron.epoch_length",
         type=int,
         help="The default epoch length (how often we set weights, measured in 12 second blocks).",
-        default=500,
+        default=300,
     )
 
     parser.add_argument(
@@ -201,7 +201,7 @@ def add_validator_args(cls, parser):
         "--neuron.sample_size",
         type=int,
         help="The number of miners to query in a single step.",
-        default=16,
+        default=16, #ignored for >= 0.8.6 
     )
 
     parser.add_argument(
@@ -215,7 +215,7 @@ def add_validator_args(cls, parser):
         "--neuron.moving_average_alpha",
         type=float,
         help="Moving average alpha parameter, how much to add of the new observation.",
-        default=0.1,
+        default=0.3,
     )
 
     parser.add_argument(
@@ -232,7 +232,7 @@ def add_validator_args(cls, parser):
         "--neuron.vpermit_tao_limit",
         type=int,
         help="The maximum number of TAO allowed to query a validator with a vpermit.",
-        default=4096,
+        default=10000,
     )
 
     parser.add_argument(

@@ -25,7 +25,7 @@ def validate_br_request(synapse: BitrecsRequest) -> bool:
     if synapse.site_key is None or synapse.site_key == "":
         bt.logging.error(f"Site key is empty!: {synapse}")
         return False
-    if synapse.num_results < 1 or synapse.num_results > CONST.MAX_RECS_PER_REQUEST:
+    if synapse.num_results < CONST.MIN_RECS_PER_REQUEST or synapse.num_results > CONST.MAX_RECS_PER_REQUEST:
         bt.logging.error(f"Number of recommendations should be less than {CONST.MAX_RECS_PER_REQUEST}!: {synapse}")
         return False
     

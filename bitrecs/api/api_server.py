@@ -4,7 +4,10 @@ import time
 import hmac
 import hashlib
 import threading
+import traceback
 import bittensor as bt
+from dotenv import load_dotenv
+load_dotenv()
 from dataclasses import asdict
 from typing import Callable
 from functools import partial
@@ -12,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request, APIRouter, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.utils import constants as CONST
+from bitrecs.utils import constants as CONST, epoch
 from bitrecs.commerce.product import ProductFactory
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.api.api_core import filter_allowed_ips, limiter
@@ -24,8 +27,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.exceptions import InvalidSignature
 from uvicorn.config import Config
 from uvicorn.server import Server
-from dotenv import load_dotenv
-load_dotenv()
 
 ForwardFn = Callable[[BitrecsRequest], BitrecsRequest]
 
@@ -170,7 +171,8 @@ class ApiServer:
             'results': request.results,
             'models_used': request.models_used,
             'miner_uid': request.miner_uid,
-            'miner_hotkey': request.miner_hotkey
+            'miner_hotkey': request.miner_hotkey,
+            'miner_signature': request.miner_signature
         }
 
         body_str = json.dumps(d, sort_keys=True)
@@ -187,18 +189,53 @@ class ApiServer:
     
     async def ping(self, request: Request):
         bt.logging.info(f"\033[1;32m API Server ping \033[0m")
-        st = int(time.time())        
-        return JSONResponse(status_code=200, content={"detail": "pong", "st": st})
+        ts = int(time.time())        
+        return JSONResponse(status_code=200, content={"detail": "pong", "ts": ts})
     
     
     async def version(self, request: Request):
         bt.logging.info(f"\033[1;32m API Server version \033[0m")
-        st = int(time.time())
+        ts = int(time.time())
         if not self.validator.local_metadata:
             bt.logging.error(f"\033[1;31m API Server version - No metadata \033[0m")
-            return JSONResponse(status_code=200, content={"detail": "version", "meta_data": {}, "st": st})
+            return JSONResponse(status_code=500, content={"detail": "version", "meta_data": {}, "ts": ts, "status": "meta_data error", "metrics": {}})
         v = self.validator.local_metadata.to_dict()
-        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "st": st})
+
+        total_uids = self.validator.total_uids or []        
+        suspect_miners = self.validator.suspect_miners or []
+        batch_seen_uids = self.validator.batch_seen_uids or []
+        batch_orphan_uids = self.validator.batch_orphan_uids or []
+        last_tempo = self.validator.last_tempo or 0
+        tempo_batch_index = self.validator.tempo_batch_index or 0
+        batches_completed = self.validator.batches_completed or 0
+        bad_set_count = self.validator.bad_set_count or 0
+        coverage = (len(batch_seen_uids) / len(total_uids)) * 100 if len(total_uids) > 0 else 0        
+
+        current_block = self.validator.block
+        netuid = self.validator.config.netuid
+        current_epoch, blocks_until_next_epoch, epoch_start_block = epoch.get_current_epoch_info(current_block, netuid)
+        minutes_to_next_block = blocks_until_next_epoch * 12 / 60
+
+        metrics = {
+            "tempo": CONST.EPOCH_TEMPO,
+            "batch_size": CONST.QUERY_BATCH_SIZE,
+            "total_uids": sorted(total_uids),
+            "suspect_miners": sorted(suspect_miners),
+            "batch_seen_uids": sorted(batch_seen_uids),
+            "batch_orphan_uids": sorted(batch_orphan_uids),
+            "last_tempo": last_tempo,
+            "tempo_batch_index": tempo_batch_index,
+            "batches_completed": batches_completed,
+            "bad_set_count": bad_set_count,
+            "coverage": round(coverage, 2),
+            "current_block": current_block,
+            "current_epoch": current_epoch,
+            "blocks_until_next_epoch": blocks_until_next_epoch,
+            "epoch_start_block": epoch_start_block,
+            "minutes_to_next_epoch": round(minutes_to_next_block, 2)
+        }
+
+        return JSONResponse(status_code=200, content={"detail": "version", "meta_data": v, "ts": ts, "status": "OK", "metrics": metrics})
     
     
     async def generate_product_rec_localnet(
@@ -314,8 +351,18 @@ class ApiServer:
             response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
             bt.logging.trace(response_text)
 
-            if len(response.results) == 0:
-                bt.logging.error(f"API forward_fn response has no results")
+            # if len(response.results) == 0:
+            #     bt.logging.error(f"API forward_fn response has no results")
+            #     return JSONResponse(status_code=500,
+            #                         content={"detail": "error - forward", "status_code": 500})
+            
+            # if not CONST.MIN_NUM_RESULTS <= len(response.results) <= CONST.MAX_NUM_RESULTS:
+            #     bt.logging.error(f"API forward_fn response has num_recs out of bounds: {len(response.results)}")
+            #     return JSONResponse(status_code=500,
+            #                         content={"detail": "error - forward", "status_code": 500})
+
+            if len(response.results) != request.num_results:
+                bt.logging.error(f"API forward_fn response has a num_recs mismatch")
                 return JSONResponse(status_code=500,
                                     content={"detail": "error - forward", "status_code": 500})
 
@@ -355,7 +402,7 @@ class ApiServer:
             }
             et_a = int(time.time())
             total_duration = et_a - st_a
-            bt.logging.info("\033[1;32m Validator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
+            bt.logging.info("\033[1;32mValidator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
             return JSONResponse(status_code=200, content=response)
         
         except HTTPException as h:
@@ -364,7 +411,9 @@ class ApiServer:
                                 content={"detail": "error", "status_code": h.status_code})
 
         except Exception as e:
-            bt.logging.error(f"\033[31m ERROR API generate_product_rec_testnet:\033[0m {e}")            
+            bt.logging.error(f"\033[31m ERROR API generate_product_rec_testnet:\033[0m {e}")
+            bt.logging.error(f"\033[31m TRACEBACK:\033[0m\n{traceback.format_exc()}")
+            bt.logging.trace(response)
             return JSONResponse(status_code=500,
                                 content={"detail": "error", "status_code": 500})
         
@@ -401,20 +450,26 @@ class ApiServer:
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
                 bt.logging.error(f"API invalid catalog size: {catalog_size} skus")
                 return JSONResponse(status_code=400,
-                                    content={"detail": "error - invalid catalog - size", "status_code": 400})
+                                    content={"detail": "error - invalid catalog - size", "status_code": 400})           
+            
             
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
             sn_t = time.perf_counter()
-            response = await self.forward_fn(request)
+            response : BitrecsRequest = await self.forward_fn(request)
             subnet_time = time.perf_counter() - sn_t
             response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
             bt.logging.trace(response_text)
 
-            if len(response.results) == 0:
-                bt.logging.error(f"API forward_fn response has no results")
+            if not CONST.MIN_NUM_RESULTS <= len(response.results) <= CONST.MAX_NUM_RESULTS:
+                bt.logging.error(f"API forward_fn response has num_recs out of bounds: {len(response.results)}")
                 return JSONResponse(status_code=500,
-                                    content={"detail": "error - forward", "status_code": 500})         
-             
+                                    content={"detail": "error - forward", "status_code": 500})
+
+            if len(response.results) != request.num_results:
+                bt.logging.error(f"API forward_fn response has a num_recs mismatch")
+                return JSONResponse(status_code=500,
+                                    content={"detail": "error - forward", "status_code": 500})            
+            
             final_recs = [json.loads(idx) for idx in response.results]
             response = {
                 "user": "",
@@ -432,7 +487,7 @@ class ApiServer:
             }
             et_a = int(time.time())
             total_duration = et_a - st_a
-            bt.logging.info("\033[1;32m Validator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
+            bt.logging.info("\033[1;32mValidator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
             return JSONResponse(status_code=200, content=response)
         
         except HTTPException as h:
@@ -440,8 +495,10 @@ class ApiServer:
             return JSONResponse(status_code=h.status_code,
                                 content={"detail": "error", "status_code": h.status_code})
 
-        except Exception as e:
-            bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")            
+        except Exception as e:            
+            bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")
+            bt.logging.error(f"\033[31m TRACEBACK:\033[0m\n{traceback.format_exc()}")
+            #bt.logging.trace(response)
             return JSONResponse(status_code=500,
                                 content={"detail": "error", "status_code": 500})
 

@@ -11,7 +11,7 @@ class ColorPalette:
     """Color schemes for matrix visualization"""
     SCHEMES = {
         ColorScheme.VIRIDIS: {
-            "strong": "\033[38;5;114m",  # Lime Green
+            "strong": "\033[38;5;46m",   # Strong Green
             "medium": "\033[38;5;37m",     # Teal
             "weak": "\033[38;5;31m",   # Deep Blue
             "minimal": "\033[38;5;55m",   # Dark Purple 
