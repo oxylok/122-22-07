@@ -67,6 +67,12 @@ from bitrecs.utils.logging import (
 from bitrecs.utils.wandb import WandbHelper
 from bitrecs.commerce.user_action import UserAction
 
+# Set up logging to filter out specific trace messages
+original_trace = bt.logging.trace
+def filtered_trace(message, *args, **kwargs):
+    if "Unexpected header key encountered" not in message:
+        original_trace(message, *args, **kwargs)
+bt.logging.trace = filtered_trace
 
 API_QUEUE = SimpleQueue()
 
