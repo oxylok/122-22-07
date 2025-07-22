@@ -37,6 +37,7 @@ safe_random = SystemRandom()
 from collections import Counter
 from typing import List, Union, Optional
 from dataclasses import dataclass
+from collections import defaultdict
 from queue import SimpleQueue, Empty
 from bitrecs.base.neuron import BaseNeuron
 from bitrecs.base.utils.weight_utils import (
@@ -399,14 +400,27 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.trace(f"Dendrite hotkey counts: {hotkey_counts}")
         if len(hotkey_counts) != 1:
             bt.logging.warning(f"Multiple unique dendrite.hotkeys found: {list(hotkey_counts.keys())}")
+            self.log_grouped_by_hotkey(responses)
             return False
         uuids = [r.dendrite.uuid for r in responses]
         uuid_counts = Counter(uuids)
         if len(uuid_counts) != 1:
             bt.logging.warning(f"Multiple unique dendrite UUIDs found: {list(uuid_counts.keys())}")
+            self.log_grouped_by_hotkey(responses)
             return False
         return True
 
+    def log_grouped_by_hotkey(self, responses):
+        grouped = defaultdict(list)
+        for r in responses:
+            grouped[r.dendrite.hotkey].append(r)
+
+        for hotkey, group in grouped.items():
+            bt.logging.warning(f"\n=== dendrite.hotkey: {hotkey} ({len(group)} responses) ===")
+            for response in group:
+                bt.logging.warning(
+                    f"  IP {response.axon.ip} | dhk: {response.dendrite.hotkey} | ahk: {response.axon.hotkey} | uid: {response.miner_uid}"
+                )
 
     async def main_loop(self):
         """Main loop for the validator."""
@@ -437,8 +451,9 @@ class BaseValidatorNeuron(BaseNeuron):
                         pass #continue prevents regular val loop
 
                     if synapse_with_event is not None and api_enabled: #API request
-                        bt.logging.info("** Processing synapse from API server **")                        
+                        bt.logging.info("** Processing synapse from API server **")
                         bt.logging.info(f"Queue Size: {API_QUEUE.qsize()}")
+                        bt.logging.info(f"R Limit: {self.r_limit}")
                         
                         if not validate_br_request(synapse_with_event.input_synapse):
                             bt.logging.error("Request failed Validation, skipped.")
@@ -478,15 +493,17 @@ class BaseValidatorNeuron(BaseNeuron):
                             any_success = any([r for r in responses if r.is_success])
                             if not any_success: #don't penalize the entire set, just exit
                                 bt.logging.error("\033[1;31mRETRY FAILED - NO SUCCESSFUL RESPONSES\033[0m")
+                                self.bad_set_count += 1
                                 synapse_with_event.event.set()
                                 continue
 
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
                         if not self.check_response_structure(responses):
-                            bt.logging.error("\033[31mResponse structure check failed, skipping this batch\033[0m")
-                            synapse_with_event.event.set()
-                            continue
+                            #bt.logging.error("\033[31mResponse structure check failed, skipping this batch\033[0m")
+                            self.bad_set_count += 1
+                            #synapse_with_event.event.set()
+                            #continue
 
                         rewards = get_rewards(self.wallet.hotkey.ss58_address,
                                               ground_truth=api_request,
@@ -513,6 +530,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                     bt.logging.warning(f"Orphan UID {uid}: potential reward={reward:.4f}")
                                 if CONST.REWARD_ORPHANS:
                                     self.update_successful_scores(rewards, chosen_uids)
+                                    bt.logging.trace(f"\033[32mOrphans rewarded with {BASE_REWARD:.4f} each\033[0m")
                             self.decay_suspects()
                             synapse_with_event.event.set()
                             continue
@@ -833,13 +851,17 @@ class BaseValidatorNeuron(BaseNeuron):
             return
         if uids_array is None:
             uids_array = []
-        
+
+        decay_count = 0
         bt.logging.info(f"Decaying scores for suspect miners: {self.suspect_miners}")
         for suspect_uid in self.suspect_miners:
             if suspect_uid not in uids_array and 0 <= suspect_uid < len(self.scores):
-                old_score = self.scores[suspect_uid]
+                #old_score = self.scores[suspect_uid]
                 self.scores[suspect_uid] *= SUSPECT_MINER_DECAY
-                bt.logging.info(f"\033[33mDecayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f} \033[0m")
+                decay_count += 1
+                #bt.logging.trace(f"\033[33mDecayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f} \033[0m")
+        if decay_count > 0:
+            bt.logging.trace(f"\033[33mDecayed {decay_count} suspect miners\033[0m")
                 
 
     def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
