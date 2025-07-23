@@ -450,8 +450,11 @@ class ApiServer:
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
                 bt.logging.error(f"API invalid catalog size: {catalog_size} skus")
                 return JSONResponse(status_code=400,
-                                    content={"detail": "error - invalid catalog - size", "status_code": 400})           
-            
+                                    content={"detail": "error - invalid catalog - size", "status_code": 400})
+            if request.num_results > catalog_size:
+                bt.logging.error(f"API invalid num_results: {request.num_results} > catalog size {catalog_size}")
+                return JSONResponse(status_code=400,
+                                    content={"detail": "error - invalid num_results", "status_code": 400})
             
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
             sn_t = time.perf_counter()
@@ -459,11 +462,6 @@ class ApiServer:
             subnet_time = time.perf_counter() - sn_t
             response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
             bt.logging.trace(response_text)
-
-            # if not CONST.MIN_NUM_RESULTS <= len(response.results) <= CONST.MAX_NUM_RESULTS:
-            #     bt.logging.error(f"API forward_fn response has num_recs out of bounds: {len(response.results)}")
-            #     return JSONResponse(status_code=500,
-            #                         content={"detail": "error - forward", "status_code": 500})
 
             if len(response.results) != request.num_results:
                 bt.logging.error(f"API forward_fn response has a num_recs mismatch")

@@ -34,13 +34,15 @@ Constants:
     SCORE_DISPLAY_ENABLED (bool): Flag to enable score display.
     SCORE_DISPLAY_INTERVAL (int): Interval for score display updates.
     REWARD_ORPHANS (bool): Flag to enable rewarding orphaned miners.
+    BATCH_ENTITY_THRESHOLD (float): Threshold for considering nodes as entities.
+    REWARD_ENTITIES (bool): Flag to enable rewarding entities.
 
 """
 
 ROOT_DIR = Path(bitrecs.__file__).parent.parent
 SCHEMA_UPDATE_CUTOFF = datetime(2025, 7, 28, tzinfo=timezone.utc)
 EPOCH_TEMPO = 360
-TEMPO_SYNC_INTERVAL = 120
+TEMPO_SYNC_INTERVAL = 180
 MAX_DENDRITE_TIMEOUT = 5
 MIN_QUERY_LENGTH = 3
 MAX_QUERY_LENGTH = 40
@@ -57,11 +59,13 @@ R2_SYNC_INTERVAL = 3600
 CATALOG_DUPE_THRESHOLD = 0.05
 RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
-RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9-._/-:]")
+RE_MODEL_NAME = re.compile(r"[^A-Za-z0-9._/: +-]")
 CONVERSION_SCORING_ENABLED = False
 QUERY_BATCH_SIZE = 14
 MIN_QUERY_BATCH_SIZE = 3
 BATCH_FAILURE_THRESHOLD = 0.90
 SCORE_DISPLAY_ENABLED = True
-SCORE_DISPLAY_INTERVAL = 180
+SCORE_DISPLAY_INTERVAL = 300
 REWARD_ORPHANS = True
+BATCH_ENTITY_THRESHOLD = 0.20
+REWARD_ENTITIES = True

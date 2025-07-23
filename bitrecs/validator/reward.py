@@ -287,52 +287,69 @@ def get_rewards(
     responses: List[BitrecsRequest],
     actions: List[UserAction] = None,
     r_limit: float = 1.0,
-    batch_size: int = 16
+    batch_size: int = 16,
+    entity_threshold: float = 0.3
 ) -> np.ndarray:
     """
     Returns an array of rewards for the given query and responses.
-
-    Args:
-    - ground_truth (:obj:`bitrecs.protocol.BitrecsRequest`): The original request object containing the query and context.
-    - responses (List[:obj:`bitrecs.protocol.BitrecsRequest`]): The list of responses from miners.
-    - actions (List[:obj:`bitrecs.commerce.user_action.UserAction`]): The list of user actions for the query.
-    - r_limit (float): Min walltime for recs.
-    - batch_size (int): Neuron sample size of batch.
-
+    - validator_hotkey: The hotkey of the validator.
+    - ground_truth: The BitrecsRequest object containing the ground truth query
+    - responses: A list of BitrecsRequest objects containing the responses from miners.
+    - actions: A list of UserAction objects containing the actions performed by users.
+    - r_limit: The rlimit for responses.
+    - batch_size: The number of responses in this batch.
+    - entity_threshold: The threshold for considering nodes as entities.
     Returns:
-    - np.ndarray: An array of rewards for the given query and responses.
-    """
+    - np.ndarray: An array of rewards for each response.
     
+    """
+
     if ground_truth.num_results < CONST.MIN_RECS_PER_REQUEST or ground_truth.num_results > CONST.MAX_RECS_PER_REQUEST:
         bt.logging.error(f"Invalid number of recommendations: {ground_truth.num_results}")
         raise ValueError(f"Invalid number of recommendations: {ground_truth.num_results}")
-        #return np.zeros(len(responses), dtype=float)
-    
-    store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
+
+    store_catalog: list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
         raise ValueError(f"Invalid catalog size: {len(store_catalog)}")
-        #return np.zeros(len(responses), dtype=float)
     catalog_validator = CatalogValidator(store_catalog)
-    
+
     if not actions or len(actions) == 0:
         bt.logging.warning(f"\033[1;33m WARNING - no actions found in get_rewards \033[0m")
-    
+
     axon_times = []
     for response in responses:
         axon_time = response.axon.process_time if response.axon and response.axon.process_time else None
         axon_times.append(axon_time)
-    
-    valid_times = [t for t in axon_times if t is not None and t > 0]    
+
+    valid_times = [t for t in axon_times if t is not None and t > 0]
     if len(valid_times) > 1:
         min_time = min(valid_times)
         max_time = max(valid_times)
         avg_time = sum(valid_times) / len(valid_times)
         spread = max_time - min_time
         bt.logging.trace(f"Batch: min={min_time:.4f}s, max={max_time:.4f}s, avg={avg_time:.4f}s, spread={spread:.4f}s")
-        if spread > 2.0:            
+        if spread > 2.0:
             bt.logging.info(f"\033[33mWide Spread detected: {spread:.4f}s\033[0m")
-    
+
+    ip_counts = {}
+    for response in responses:
+        ip = response.axon.ip
+        ip_counts[ip] = ip_counts.get(ip, 0) + 1
+
+    max_ip_count = max(ip_counts.values()) if ip_counts else 0
+    max_ip_percent = max_ip_count / len(responses) if responses else 0
+
+    bt.logging.trace("IP Address      | Count")
+    bt.logging.trace("----------------|------")
+    for ip, count in sorted(ip_counts.items(), key=lambda x: -x[1]):
+        bt.logging.trace(f"{ip:<15} | {count}")
+
+    entity_ips = set()
+    if max_ip_percent >= entity_threshold:
+        entity_ips = {ip for ip, count in ip_counts.items() if count / len(responses) >= entity_threshold}
+        bt.logging.warning(f"Entity threshold > \033[33m{max_ip_percent:.2%}\033[0m from {entity_ips}")
+
     difficulty_decay = measure_request_difficulty(
         sku=ground_truth.query,
         catalog_size=len(store_catalog),
@@ -355,8 +372,12 @@ def get_rewards(
         bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
 
     rewards = []
-    for i, response in enumerate(responses):        
-        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, actions, r_limit)        
+    for i, response in enumerate(responses):
+        if response.axon.ip in entity_ips:
+            if not CONST.REWARD_ENTITIES:
+                rewards.append(0.0)
+            continue
+        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, actions, r_limit)
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
@@ -365,7 +386,7 @@ def get_rewards(
         else:
             final_score = base_reward
         rewards.append(final_score)
-    
+
     return np.array(rewards, dtype=float)
 
 

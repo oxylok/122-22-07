@@ -506,7 +506,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
                         if not self.check_response_structure(responses):
-                            #bt.logging.error("\033[31mResponse structure check failed, skipping this batch\033[0m")
+                            #Just warn here, rewards are 0 for malformed responses
                             self.bad_set_count += 1
                             #synapse_with_event.event.set()
                             #continue
@@ -516,7 +516,8 @@ class BaseValidatorNeuron(BaseNeuron):
                                               responses=responses,
                                               actions=self.user_actions,
                                               r_limit=self.r_limit,
-                                              batch_size=CONST.QUERY_BATCH_SIZE)
+                                              batch_size=CONST.QUERY_BATCH_SIZE,
+                                              entity_threshold= CONST.BATCH_ENTITY_THRESHOLD)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
@@ -575,8 +576,9 @@ class BaseValidatorNeuron(BaseNeuron):
                             continue
                     
                         elected : BitrecsRequest = responses[selected_rec]
-                        elected.context = ""
+                        elected.context = "[]"
                         elected.user = ""
+                        elected.models_used = [CONST.RE_MODEL_NAME.sub("", m) for m in elected.models_used]
                         
                         bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used}\033[0m")
