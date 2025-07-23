@@ -98,7 +98,7 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
 def verify_response_signature(response: BitrecsRequest) -> bool:
     try:
         if not response.miner_signature:
-            bt.logging.error("Response missing miner_signature for verification.")
+            bt.logging.error("Response missing miner_signature")
             return False
         payload = {
             "name": response.name,
@@ -207,7 +207,7 @@ def reward(
             bt.logging.error(f"{response.axon.hotkey[:8]} is_success is False, status: {response.dendrite.status_code}")
             return 0.0
         if not verify_response_signature(response):
-            bt.logging.error(f"{response.axon.hotkey[:8]} response signature verification failed")
+            bt.logging.error(f"{response.axon.hotkey[:8]} signature verification")
             return 0.0
         if not response.miner_uid or not response.miner_hotkey:
             bt.logging.error(f"{response.axon.hotkey[:8]} is not reporting correctly (missing ids)")
