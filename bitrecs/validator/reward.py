@@ -25,6 +25,7 @@ import bittensor as bt
 import jsonschema
 import json_repair
 from typing import List
+from datetime import datetime, timezone
 from bitrecs.commerce.user_action import UserAction, ActionType
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.commerce.product import Product, ProductFactory
@@ -99,8 +100,14 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
     try:
         if not response.miner_signature:
             bt.logging.error("Response missing miner_signature")
-            return False        
-        
+            return False
+        utc_now = datetime.now(timezone.utc)
+        response_time = datetime.fromisoformat(response.created_at)
+        age = (utc_now - response_time).total_seconds()
+        if age > 300:
+            bt.logging.error(f"Response is too old: {age} seconds")
+            return False
+
         payload = {
             "name": response.name,
             "axon_hotkey": response.axon.hotkey,
