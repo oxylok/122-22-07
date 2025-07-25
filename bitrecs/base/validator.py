@@ -344,15 +344,16 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.info(f"\033[1;32mTop {top_n} of {len(requests)} successful bitrecs \033[0m")
             most_similar = select_most_similar_bitrecs(valid_requests, top_n)
             if not most_similar:
-                bt.logging.warning(f"\033[33mNo similar recs found in this round step: {self.step} \033[0m")
+                bt.logging.warning(f"\033[33mNo similar recs found in step: {self.step} \033[0m")
                 return
             if self.config.logging.trace:
                 most_similar_indices = [valid_requests.index(req) for req in most_similar]                
                 matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices)
                 bt.logging.trace(matrix)
 
-            for sim in most_similar:                
-                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")                
+            bt.logging.trace("Election candidates:")
+            for sim in most_similar:
+                bt.logging.info(f"\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m")
 
             et = time.perf_counter()
             diff = et - st
@@ -360,7 +361,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return most_similar
         
         except Exception as e:            
-            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")            
+            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
             bt.logging.error(traceback.format_exc())
             return
         
@@ -443,7 +444,6 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 try:
-
                     api_enabled = self.config.api.enabled
                     api_exclusive = self.config.api.exclusive
                     bt.logging.trace(f"api_enabled: {api_enabled} | api_exclusive {api_exclusive}")
@@ -551,9 +551,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             top_k = await self.analyze_similar_requests(good_responses)
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
-                                selected_rec = responses.index(winner)
+                                selected_rec = responses.index(winner)                                
                                 
-                                bt.logging.trace("using entity and model diversity for consensus")
                                 MIN_UNIQUE_ENTITIES = 2
                                 FRACTION_UNIQUE_ENTITIES = 0.67
                                 entities = set([br.axon.ip for br in top_k])
@@ -569,7 +568,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                     and model_diversity >= MIN_UNIQUE_MODELS
                                     and model_diversity >= FRACTION_UNIQUE_MODELS * len(top_k)
                                 ):
-                                    bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} selected - batch: {winner.site_key} \033[0m")
+                                    bt.logging.info(f"\033[1;32mConsensus miner:{winner.miner_uid}:{winner.models_used} - batch:{winner.site_key} \033[0m")
                                     rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER                            
                                     consensus_bonus_applied = True
                                 else:
@@ -602,6 +601,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
+                            self.bad_set_count += 1
                             synapse_with_event.event.set()
                             continue
                         
