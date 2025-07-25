@@ -103,6 +103,8 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
             return False
         utc_now = datetime.now(timezone.utc)
         response_time = datetime.fromisoformat(response.created_at)
+        if response_time.tzinfo is None:
+            response_time = response_time.replace(tzinfo=timezone.utc)
         age = (utc_now - response_time).total_seconds()
         if age > 300:
             bt.logging.error(f"Response is too old: {age} seconds")
