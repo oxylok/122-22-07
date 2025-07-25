@@ -552,13 +552,25 @@ class BaseValidatorNeuron(BaseNeuron):
                             if top_k:
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
+                                
+                                bt.logging.trace("using entity and model diversity for consensus")
                                 MIN_UNIQUE_ENTITIES = 2
                                 FRACTION_UNIQUE_ENTITIES = 0.67
                                 entities = set([br.axon.ip for br in top_k])
                                 entity_size = len(entities)
-                                if entity_size >= MIN_UNIQUE_ENTITIES and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k):
-                                    rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
-                                    bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} awarded bonus - batch: {winner.site_key} \033[0m")
+
+                                model_set = set([br.models_used[0] for br in top_k if br.models_used])
+                                model_diversity = len(model_set)
+                                MIN_UNIQUE_MODELS = 2
+                                FRACTION_UNIQUE_MODELS = 0.50
+                                if (
+                                    entity_size >= MIN_UNIQUE_ENTITIES
+                                    and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k)
+                                    and model_diversity >= MIN_UNIQUE_MODELS
+                                    and model_diversity >= FRACTION_UNIQUE_MODELS * len(top_k)
+                                ):
+                                    bt.logging.info(f"\033[1;32mConsensus miner: {winner.miner_uid} from {winner.models_used} selected - batch: {winner.site_key} \033[0m")
+                                    rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER                            
                                     consensus_bonus_applied = True
                                 else:
                                     bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size} \033[0m")
@@ -593,21 +605,19 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        synapse_with_event.output_synapse = elected
-                        # Mark the synapse as processed, API will then return to the client
+                        synapse_with_event.output_synapse = elected                        
                         synapse_with_event.event.set()
                         self.total_request_in_interval +=1
                     
                         bt.logging.info(f"Scored responses: {rewards}")
                         self.update_scores(rewards, chosen_uids)
                         loop = asyncio.get_event_loop()
-                        loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, elected)
+                        loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, elected)
                         bt.logging.trace(f"SQL logging submitted to thread pool - step {self.step}")
                         
                     else:
-                        if not api_exclusive: #Regular validator loop  
-                            bt.logging.info("Processing synthetic concurrent forward")
-                            #self.loop.run_until_complete(self.concurrent_forward())
+                        if not api_exclusive:
+                            bt.logging.info("Processing synthetic concurrent forward")                            
                             raise NotImplementedError("concurrent_forward not implemented")
 
                     if self.should_exit:
@@ -863,11 +873,9 @@ class BaseValidatorNeuron(BaseNeuron):
         decay_count = 0
         bt.logging.info(f"Decaying scores for suspect miners: {self.suspect_miners}")
         for suspect_uid in self.suspect_miners:
-            if suspect_uid not in uids_array and 0 <= suspect_uid < len(self.scores):
-                #old_score = self.scores[suspect_uid]
+            if suspect_uid not in uids_array and 0 <= suspect_uid < len(self.scores):                
                 self.scores[suspect_uid] *= SUSPECT_MINER_DECAY
-                decay_count += 1
-                #bt.logging.trace(f"\033[33mDecayed suspect miner UID {suspect_uid}: {old_score:.6f} -> {self.scores[suspect_uid]:.6f} \033[0m")
+                decay_count += 1                
         if decay_count > 0:
             bt.logging.trace(f"\033[33mDecayed {decay_count} suspect miners\033[0m")
                 
@@ -887,8 +895,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def get_normalized_scores(self):        
         """fixed ceiling normalization of scores"""
-        scores = self.scores.copy()
-        #nonlinear_power = 1.1
+        scores = self.scores.copy()        
         nonlinear_power = 1.0
         max_score = BASE_REWARD * CONSENSUS_BONUS_MULTIPLIER
         n = len(scores)

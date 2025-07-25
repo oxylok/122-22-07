@@ -211,17 +211,19 @@ class Miner(BaseMinerNeuron):
                 except json.JSONDecodeError:
                     repaired = json_repair.repair_json(item_str)
                     dictionary_item = json.loads(repaired)
-                
+                if "sku" not in dictionary_item:
+                    bt.logging.error(f"Item missing 'sku' key: {dictionary_item}")
+                    continue                
                 if "name" not in dictionary_item:
                     bt.logging.error(f"Item missing 'name' key: {dictionary_item}")
-                    continue
+                    continue                
                 dictionary_item["name"] = CONST.RE_PRODUCT_NAME.sub("", str(dictionary_item["name"]))
-
-                if "reason" in dictionary_item:
-                    dictionary_item["reason"] = CONST.RE_REASON.sub("", str(dictionary_item["reason"]))
-                
+                if "reason" not in dictionary_item:
+                    bt.logging.error(f"Item missing 'reason' key: {dictionary_item}")
+                    continue
+                dictionary_item["reason"] = CONST.RE_REASON.sub("", str(dictionary_item["reason"]))                
                 recommendation = json.dumps(dictionary_item, separators=(',', ':'))
-                final_results.append(recommendation)
+                final_results.append(recommendation)                
             except Exception as e:
                 bt.logging.error(f"Failed to parse LLM result: {item}, error: {e}")
                 continue

@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import bittensor as bt
+import numpy as np
 import pandas as pd
 import sqlite3
 from datetime import datetime, timezone
@@ -149,7 +150,7 @@ def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> Non
     conn.commit()
 
 
-def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], elected: BitrecsRequest) -> None:
+def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], rewards: np.ndarray,  elected: BitrecsRequest) -> None:
     try:
         frames = []
         for response in responses:
@@ -163,6 +164,10 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], elect
                 **response.to_dict()
             }
             df = pd.json_normalize(data)
+            if rewards is not None and len(rewards) > 0:
+                df['reward'] = rewards[responses.index(response)] if responses.index(response) < len(rewards) else 0.0
+            else:
+                df['reward'] = 0.0
             frames.append(df)
         final = pd.concat(frames)
 

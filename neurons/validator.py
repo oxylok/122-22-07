@@ -333,7 +333,9 @@ class Validator(BaseValidatorNeuron):
             bt.logging.trace(f"Cooldowns updated: Limit: {self.r_limit},  {len(self.banned_ips)} IPs, {len(self.banned_coldkeys)} coldkeys, {len(self.banned_hotkeys)} hotkeys")
         except Exception as e:
             bt.logging.error(f"cooldown_sync Exception: {e}")
-    
+
+
+  
 
 
 async def main():

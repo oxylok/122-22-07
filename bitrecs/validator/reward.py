@@ -34,15 +34,15 @@ BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
 
-CONSENSUS_BONUS_MULTIPLIER = 1.025
+CONSENSUS_BONUS_MULTIPLIER = 1.01
 SUSPECT_MINER_DECAY = 0.980
 USE_DIFFICULTY_ADJUSTMENT = False
 
 
 ACTION_WEIGHTS = {
-    ActionType.VIEW_PRODUCT.value: 0.05,
-    ActionType.ADD_TO_CART.value: 0.10,
-    ActionType.PURCHASE.value: 0.85,
+    ActionType.VIEW_PRODUCT.value: 0.0,
+    ActionType.ADD_TO_CART.value: 0.0,
+    ActionType.PURCHASE.value: 0.0,
 }
 
 class CatalogValidator:
@@ -99,7 +99,8 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
     try:
         if not response.miner_signature:
             bt.logging.error("Response missing miner_signature")
-            return False
+            return False        
+        
         payload = {
             "name": response.name,
             "axon_hotkey": response.axon.hotkey,
