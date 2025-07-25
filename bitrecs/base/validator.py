@@ -506,10 +506,10 @@ class BaseValidatorNeuron(BaseNeuron):
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
                         if not self.check_response_structure(responses):
-                            #Just warn here, rewards are 0 for malformed responses
+                            #Hard fail entire batch if structure is invalid                            
                             self.bad_set_count += 1
-                            #synapse_with_event.event.set()
-                            #continue
+                            synapse_with_event.event.set()
+                            continue
 
                         rewards = get_rewards(self.wallet.hotkey.ss58_address,
                                               ground_truth=api_request,
@@ -553,7 +553,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                 winner = safe_random.sample(top_k, 1)[0]
                                 selected_rec = responses.index(winner)
                                 MIN_UNIQUE_ENTITIES = 2
-                                FRACTION_UNIQUE_ENTITIES = 0.5
+                                FRACTION_UNIQUE_ENTITIES = 0.67
                                 entities = set([br.axon.ip for br in top_k])
                                 entity_size = len(entities)
                                 if entity_size >= MIN_UNIQUE_ENTITIES and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k):

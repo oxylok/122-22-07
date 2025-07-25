@@ -34,7 +34,7 @@ BASE_BOOST = 1/256
 BASE_REWARD = 0.80
 MAX_BOOST = 0.20
 
-CONSENSUS_BONUS_MULTIPLIER = 1.01
+CONSENSUS_BONUS_MULTIPLIER = 1.025
 SUSPECT_MINER_DECAY = 0.980
 USE_DIFFICULTY_ADJUSTMENT = False
 
@@ -288,7 +288,7 @@ def get_rewards(
     actions: List[UserAction] = None,
     r_limit: float = 1.0,
     batch_size: int = 16,
-    entity_threshold: float = 0.3
+    entity_threshold: float = 0.2
 ) -> np.ndarray:
     """
     Returns an array of rewards for the given query and responses.
