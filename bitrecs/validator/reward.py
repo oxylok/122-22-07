@@ -101,15 +101,15 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
         if not response.miner_signature:
             bt.logging.error("Response missing miner_signature")
             return False
-        utc_now = datetime.now(timezone.utc)
         response_time = datetime.fromisoformat(response.created_at)
         if response_time.tzinfo is None:
             response_time = response_time.replace(tzinfo=timezone.utc)
+        utc_now = datetime.now(timezone.utc)
         age = (utc_now - response_time).total_seconds()
         if age > 300:
             bt.logging.error(f"Response is too old: {age} seconds")
             return False
-
+        
         payload = {
             "name": response.name,
             "axon_hotkey": response.axon.hotkey,
@@ -383,9 +383,8 @@ def get_rewards(
 
     rewards = []
     for i, response in enumerate(responses):
-        if response.axon.ip in entity_ips:
-            if not CONST.REWARD_ENTITIES:
-                rewards.append(0.0)
+        if response.axon.ip in entity_ips and not CONST.REWARD_ENTITIES:
+            rewards.append(0.0)
             continue
         base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, actions, r_limit)
         if base_reward <= 0.0:

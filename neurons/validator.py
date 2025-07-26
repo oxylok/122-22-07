@@ -348,10 +348,10 @@ async def main():
         validator.update_total_uids()
         while True:
             tasks = [
-                asyncio.create_task(validator.cooldown_sync()),
                 asyncio.create_task(validator.tempo_sync()),
                 asyncio.create_task(validator.version_sync()),               
-                asyncio.create_task(validator.r2_sync())
+                asyncio.create_task(validator.r2_sync()),
+                asyncio.create_task(validator.cooldown_sync())
             ]                    
             if validator.config.logging.trace and CONST.SCORE_DISPLAY_ENABLED:
                 tasks.append(asyncio.create_task(validator.score_sync()))
