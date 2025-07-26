@@ -17,6 +17,7 @@ Constants:
     MAX_RECS_PER_REQUEST (int): Maximum recommendations per request.
     MAX_CONTEXT_TEXT_LENGTH (int): Maximum length of context text.
     MAX_CONTEXT_TOKEN_COUNT (int): Maximum number of tokens in context.
+    MAX_PROMPT_CONTEXT_LENGTH (int): Maximum length of context to include in prompts.
     MIN_CATALOG_SIZE (int): Minimum size of the catalog.
     MAX_CATALOG_SIZE (int): Maximum size of the catalog.
     ACTION_SYNC_INTERVAL (int): Interval for action syncs.
@@ -48,6 +49,7 @@ MIN_RECS_PER_REQUEST = 1
 MAX_RECS_PER_REQUEST = 20
 MAX_CONTEXT_TEXT_LENGTH = 1_000_000
 MAX_CONTEXT_TOKEN_COUNT = 600_000
+MAX_PROMPT_CONTEXT_LENGTH = 25_000
 MIN_CATALOG_SIZE = 6
 MAX_CATALOG_SIZE = 100_000
 ACTION_SYNC_INTERVAL = 14400
