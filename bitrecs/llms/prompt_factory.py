@@ -108,6 +108,10 @@ class PromptFactory:
         season = self.season
         persona_data = self.PERSONAS[self.persona]
 
+        context = self.context
+        if len(context) > CONST.MAX_PROMPT_CONTEXT_LENGTH:
+            context = context[:CONST.MAX_PROMPT_CONTEXT_LENGTH]
+
         prompt = f"""# SCENARIO
     A shopper is viewing a product with SKU <sku>{self.sku}</sku> named <sku_info>{self.sku_info}</sku_info> on your e-commerce store.
     They are looking for {self.engine_mode} products to add to their cart.
@@ -155,8 +159,8 @@ class PromptFactory:
 
     Available products:
     <context>
-    {self.context}
-    </context>   
+    {context}
+    </context>
 
     # OUTPUT REQUIREMENTS
     - Return ONLY a JSON array.
