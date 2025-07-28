@@ -30,6 +30,7 @@ from bitrecs.commerce.user_action import UserAction, ActionType
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.commerce.product import Product, ProductFactory
 from bitrecs.utils import constants as CONST
+from bitrecs.utils.reasoning import ReasonReport
 
 BASE_BOOST = 1/256
 BASE_REWARD = 0.80
@@ -177,12 +178,13 @@ def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
         return 0.0
 
 
-def reward(    
+def reward(
     validator_hotkey: str,
     ground_truth: BitrecsRequest,
     catalog_validator: CatalogValidator, 
     response: BitrecsRequest,
-    actions: List[UserAction],
+    reasoning_report: ReasonReport = None,
+    actions: List[UserAction] = None,
     r_limit: float = 1.0
 ) -> float:
     """
@@ -295,7 +297,8 @@ def get_rewards(
     validator_hotkey: str,
     ground_truth: BitrecsRequest,
     responses: List[BitrecsRequest],
-    actions: List[UserAction] = None,
+    reasoning_reports: List[ReasonReport] = None,
+    actions: List[UserAction] = None,    
     r_limit: float = 1.0,
     batch_size: int = 16,
     entity_threshold: float = 0.2
@@ -323,6 +326,9 @@ def get_rewards(
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
         raise ValueError(f"Invalid catalog size: {len(store_catalog)}")
     catalog_validator = CatalogValidator(store_catalog)
+
+    if not reasoning_reports or len(reasoning_reports) == 0:
+        bt.logging.warning(f"\033[1;33m WARNING - no reasoning_reports found in get_rewards \033[0m")
 
     if not actions or len(actions) == 0:
         bt.logging.warning(f"\033[1;33m WARNING - no actions found in get_rewards \033[0m")
@@ -386,7 +392,7 @@ def get_rewards(
         if response.axon.ip in entity_ips and not CONST.REWARD_ENTITIES:
             rewards.append(0.0)
             continue
-        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, actions, r_limit)
+        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, None, actions, r_limit)
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue

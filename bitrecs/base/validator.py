@@ -517,6 +517,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         rewards = get_rewards(self.wallet.hotkey.ss58_address,
                                               ground_truth=api_request,
                                               responses=responses,
+                                              reasoning_reports=self.reasoning_reports,
                                               actions=self.user_actions,
                                               r_limit=self.r_limit,
                                               batch_size=CONST.QUERY_BATCH_SIZE,
