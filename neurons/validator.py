@@ -101,7 +101,7 @@ class Validator(BaseValidatorNeuron):
             current_tempo, _, _ = get_current_epoch_info(current_block, netuid)
             return current_tempo
         
-        bt.logging.trace(f"Tempo sync ran at {int(time.time())}")
+        bt.logging.info(f"\033[35mTempo sync ran at {int(time.time())}\033[0m")
         if self.should_sync_metagraph():
             bt.logging.info(f"Resyncing metagraph in tempo_sync - current size: {len(self.total_uids)} at block {self.block}")
             self.resync_metagraph()
@@ -117,7 +117,7 @@ class Validator(BaseValidatorNeuron):
      
     @execute_periodically(timedelta(seconds=CONST.VERSION_CHECK_INTERVAL))
     async def version_sync(self):
-        bt.logging.trace(f"Version sync ran at {int(time.time())}")
+        bt.logging.info(f"\033[35mVersion sync ran at {int(time.time())}\033[0m")
         try:
             self.local_metadata = LocalMetadata.local_metadata()
             self.local_metadata.uid = self.uid
@@ -142,6 +142,7 @@ class Validator(BaseValidatorNeuron):
         #TODO: This method is currently a placeholder and does not perform any actions.
                 
         """
+        bt.logging.trace(f"\033[35mAction sync ran at {int(time.time())}\033[0m")
         self.user_actions = []
         return
     
@@ -150,7 +151,8 @@ class Validator(BaseValidatorNeuron):
     async def r2_sync(self):
         """
         Periodically sync miner responses to R2
-        """
+        """        
+        bt.logging.info(f"\033[35mR2 sync ran at {int(time.time())}\033[0m")
         r2_enabled = self.config.r2.sync_on
         if not r2_enabled:
             bt.logging.trace(f"R2 Sync OFF at {int(time.time())}")        
@@ -158,7 +160,7 @@ class Validator(BaseValidatorNeuron):
             return
 
         start_time = time.perf_counter()
-        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
+        #bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
         if not self.wallet or not self.wallet.hotkey:
             bt.logging.error("Hotkey not found - skipping R2 sync")
             return
@@ -198,7 +200,7 @@ class Validator(BaseValidatorNeuron):
         Enhanced score display with normalized weights and EMA insights
         """
         #bt.logging.trace(f"Score sync ran at {int(time.time())}")
-        
+        bt.logging.info(f"\033[35mScore sync ran at {int(time.time())}\033[0m")
         try:
             # Get active scores (non-zero)
             active_scores = {}
@@ -315,8 +317,8 @@ class Validator(BaseValidatorNeuron):
         Load cooldowns to decay lazy miners.
 
         """
-        try:
-            bt.logging.trace(f"Cooldown sync ran at {int(time.time())}")
+        try:            
+            bt.logging.info(f"\033[35mCooldown sync ran at {int(time.time())}\033[0m")
             proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
             headers = {
                 "Content-Type": "application/json",
@@ -338,7 +340,8 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=300))
     async def reasoning_sync(self):
         try:
-            bt.logging.trace(f"Reasoning sync ran at {int(time.time())}")
+            #bt.logging.trace(f"Reasoning sync ran at {int(time.time())}")
+            bt.logging.info(f"\033[35mReasoning sync ran at {int(time.time())}\033[0m")
             report_url = "https://pub-d5347166f7584bd88644018f6be5301f.r2.dev/r2_miner_report_20250728_104851.json"
             report_json = requests.get(report_url).json()
             data = report_json.get("data", [])
