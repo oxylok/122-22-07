@@ -39,6 +39,8 @@ MAX_BOOST = 0.20
 CONSENSUS_BONUS_MULTIPLIER = 1.025
 SUSPECT_MINER_DECAY = 0.980
 USE_DIFFICULTY_ADJUSTMENT = False
+USE_REASONING_ADJUSTMENT = True
+REASONING_BONUS = 0.05
 
 
 ACTION_WEIGHTS = {
@@ -185,7 +187,8 @@ def reward(
     response: BitrecsRequest,
     reasoning_report: ReasonReport = None,
     actions: List[UserAction] = None,
-    r_limit: float = 1.0
+    r_limit: float = 1.0,
+    max_r_score: float = 1.0
 ) -> float:
     """
     Score the Miner's response to the BitrecsRequest 
@@ -247,7 +250,7 @@ def reward(
             return 0.0
         if not validate_result_schema(ground_truth.num_results, response.results):
             bt.logging.error(f"{response.miner_uid} failed schema validation: {response.miner_hotkey[:8]}")
-            return 0.0
+            return 0.0      
         
         valid_items = set()
         query_lower = response.query.lower().strip()
@@ -275,6 +278,16 @@ def reward(
             return 0.0
         
         score = BASE_REWARD
+       
+        if USE_REASONING_ADJUSTMENT:
+            if not reasoning_report:
+                bt.logging.warning(f"\033[33m{response.miner_uid} missing reasoning report - reward reduced \033[0m")
+                return score / 3 #This miner is stil ramping
+            if reasoning_report.score > 0:
+                scaled_score = reasoning_report.score / max_r_score if max_r_score > 0 else 0.0
+                score = BASE_REWARD + (scaled_score * REASONING_BONUS)
+            else:
+                score = BASE_REWARD / 2
         
         # if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
         #     # Adjust the rewards based on the actions
@@ -385,14 +398,20 @@ def get_rewards(
     difficulty_statement = get_difficulty_statement(difficulty_decay)
     bt.logging.trace(f"{difficulty_statement}")
     if not USE_DIFFICULTY_ADJUSTMENT:
-        bt.logging.trace(f"\033[33mDifficulty adjustment skipped! \033[0m")
+        bt.logging.trace(f"\033[33mDifficulty adjustment skipped!\033[0m")
+    
+    if USE_REASONING_ADJUSTMENT:
+        bt.logging.trace(f"\033[32mReasoning scoring is enabled\033[0m")
 
     rewards = []
     for i, response in enumerate(responses):
         if response.axon.ip in entity_ips and not CONST.REWARD_ENTITIES:
             rewards.append(0.0)
             continue
-        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, None, actions, r_limit)
+        
+        r_report = get_reasoning_report(response, reasoning_reports)
+        max_r_score = max((r.score for r in reasoning_reports), default=1.0)
+        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, r_report, actions, r_limit, max_r_score)
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue
@@ -456,3 +475,15 @@ def get_difficulty_statement(difficulty: float) -> str:
         return f"Difficulty is medium: \033[1;33m{difficulty:.3f}\033[0m"
     else:
         return f"Difficulty is hard: \033[1;31m{difficulty:.3f}\033[0m"
+    
+def get_reasoning_report(
+    response: BitrecsRequest,
+    reasoning_reports: List[ReasonReport] = None
+) -> ReasonReport:   
+    if not reasoning_reports or len(reasoning_reports) == 0:
+        return None
+    reasoning_report = next(
+        (r for r in reasoning_reports if r.miner_hotkey.lower() == response.miner_hotkey.lower()),
+        None
+    )
+    return reasoning_report
