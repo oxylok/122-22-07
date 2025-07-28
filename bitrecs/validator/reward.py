@@ -281,13 +281,16 @@ def reward(
        
         if USE_REASONING_ADJUSTMENT:
             if not reasoning_report:
-                bt.logging.warning(f"\033[33m{response.miner_uid} missing reasoning report - reward reduced \033[0m")
-                return score / 3 #This miner is stil ramping
+                score = BASE_REWARD / 3
+                bt.logging.warning(f"\033[33m{response.miner_uid} missing reasoning report - reward reduced: {score} \033[0m")
+                return score
             if reasoning_report.score > 0:
                 scaled_score = reasoning_report.score / max_r_score if max_r_score > 0 else 0.0
                 score = BASE_REWARD + (scaled_score * REASONING_BONUS)
+                bt.logging.trace(f"\033[32m{response.miner_uid} Reasoning score: {reasoning_report.score}, scaled: {scaled_score}, reward: {score} \033[0m")
             else:
                 score = BASE_REWARD / 2
+                bt.logging.warning(f"\033[33m{response.miner_uid} Poor reasoning, reward reduced: {score} \033[0m")
         
         # if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
         #     # Adjust the rewards based on the actions
