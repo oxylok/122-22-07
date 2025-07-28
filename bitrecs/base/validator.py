@@ -53,6 +53,7 @@ from bitrecs.utils.distance import (
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
+from bitrecs.utils.reasoning import ReasonReport
 from bitrecs.utils.uids import get_all_miner_uids
 from bitrecs.validator.reward import (
     BASE_REWARD, 
@@ -191,6 +192,8 @@ class BaseValidatorNeuron(BaseNeuron):
         self.last_tempo = None
         self.tempo_batch_index = 0
         self.batches_completed = 0
+
+        self.reasoning_reports: List[ReasonReport] = []
 
         #self.update_total_uids()
         

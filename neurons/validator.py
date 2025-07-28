@@ -25,6 +25,8 @@ import traceback
 import requests
 import signal
 from random import SystemRandom
+
+from bitrecs.utils.reasoning import ReasonReport
 safe_random = SystemRandom()
 from dotenv import load_dotenv
 load_dotenv()
@@ -340,17 +342,14 @@ class Validator(BaseValidatorNeuron):
     @execute_periodically(timedelta(seconds=300))
     async def reasoning_sync(self):
         try:
-            #bt.logging.trace(f"Reasoning sync ran at {int(time.time())}")
             bt.logging.info(f"\033[35mReasoning sync ran at {int(time.time())}\033[0m")
-            report_url = "https://pub-d5347166f7584bd88644018f6be5301f.r2.dev/r2_miner_report_20250728_104851.json"
-            report_json = requests.get(report_url).json()
-            data = report_json.get("data", [])
-            if not data or len(data) == 0:
-                bt.logging.error("No data found in reasoning report")
-                self.reasoning_scores = []
+            reports = ReasonReport.get_reports()
+            if not reports or len(reports) == 0:
+                bt.logging.error("\033[31mNo reasoning reports found!\033[0m")
+                self.reasoning_reports = []
                 return
-            self.reasoning_scores = data
-            bt.logging.info(f"Reasoning sync complete with \033[32m{len(self.reasoning_scores)}\033[0m scores")
+            self.reasoning_reports = reports
+            bt.logging.info(f"Reasoning sync complete with \033[32m{len(self.reasoning_reports)}\033[0m reports")
         except Exception as e:
             bt.logging.error(f"reasoning_sync Exception: {e}")
   
