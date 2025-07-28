@@ -335,6 +335,21 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"cooldown_sync Exception: {e}")
 
 
+    @execute_periodically(timedelta(seconds=300))
+    async def reasoning_sync(self):
+        try:
+            bt.logging.trace(f"Reasoning sync ran at {int(time.time())}")
+            report_url = "https://pub-d5347166f7584bd88644018f6be5301f.r2.dev/r2_miner_report_20250728_104851.json"
+            report_json = requests.get(report_url).json()
+            data = report_json.get("data", [])
+            if not data or len(data) == 0:
+                bt.logging.error("No data found in reasoning report")
+                self.reasoning_scores = []
+                return
+            self.reasoning_scores = data
+            bt.logging.info(f"Reasoning sync complete with \033[32m{len(self.reasoning_scores)}\033[0m scores")
+        except Exception as e:
+            bt.logging.error(f"reasoning_sync Exception: {e}")
   
 
 
@@ -349,9 +364,10 @@ async def main():
         while True:
             tasks = [
                 asyncio.create_task(validator.tempo_sync()),
-                asyncio.create_task(validator.version_sync()),               
+                asyncio.create_task(validator.version_sync()),
                 asyncio.create_task(validator.r2_sync()),
-                asyncio.create_task(validator.cooldown_sync())
+                asyncio.create_task(validator.cooldown_sync()),
+                asyncio.create_task(validator.reasoning_sync())
             ]                    
             if validator.config.logging.trace and CONST.SCORE_DISPLAY_ENABLED:
                 tasks.append(asyncio.create_task(validator.score_sync()))
