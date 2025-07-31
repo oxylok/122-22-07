@@ -371,8 +371,7 @@ def get_rewards(
 
     max_ip_count = max(ip_counts.values()) if ip_counts else 0
     max_ip_percent = max_ip_count / len(responses) if responses else 0
-
-    bt.logging.trace("IP Address      | Count")
+    
     bt.logging.trace("----------------|------")
     for ip, count in sorted(ip_counts.items(), key=lambda x: -x[1]):
         bt.logging.trace(f"{ip:<15} | {count}")
