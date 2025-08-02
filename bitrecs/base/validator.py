@@ -310,11 +310,20 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
             return
         
-        async def get_dynamic_top_n(num_requests: int) -> int:
-            if num_requests < 4:
-                return 2
-            #return max(2, min(5, num_requests // 3))
-            return max(3, min(8, num_requests // 3)) #Wider consensus set
+        # async def get_dynamic_top_n(num_requests: int) -> int:
+        #     if num_requests < 4:
+        #         return 2
+        #     #return max(2, min(5, num_requests // 3))
+        #     return max(3, min(8, num_requests // 3)) #Wider consensus set
+        
+        async def get_dynamic_top_n(num_requests: int, min_n: int = 2, max_n: int = 8, min_requests: int = 2, max_requests: int = 14) -> int:
+            if num_requests <= min_requests:
+                return min_n
+            if num_requests >= max_requests:
+                return max_n
+            # Linear scaling
+            scale = (max_n - min_n) / (max_requests - min_requests)
+            return min_n + int((num_requests - min_requests) * scale)
   
         st = time.perf_counter()
         try:
