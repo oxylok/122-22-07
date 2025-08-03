@@ -492,7 +492,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         responses = await self.dendrite.forward(
                             axons = chosen_axons, 
                             synapse = api_request,
-                            timeout = min(5, CONST.MAX_DENDRITE_TIMEOUT),
+                            timeout = min(8, CONST.MAX_DENDRITE_TIMEOUT),
                             deserialize=False,
                             run_async=True
                         )
@@ -504,7 +504,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             responses = await self.dendrite.forward(
                                 axons = chosen_axons, 
                                 synapse = api_request,
-                                timeout = min(5, CONST.MAX_DENDRITE_TIMEOUT),
+                                timeout = min(8, CONST.MAX_DENDRITE_TIMEOUT),
                                 deserialize=False,
                                 run_async=True
                             )
@@ -533,7 +533,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                               entity_threshold= CONST.BATCH_ENTITY_THRESHOLD)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
-                            bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
+                            bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")                            
                             synapse_with_event.event.set()
                             continue
                         

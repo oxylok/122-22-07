@@ -560,7 +560,7 @@ def test_call_nousresearch_deephermes_3_mistral_24b_preview():
     
 
 
-@pytest.mark.skip(reason="skipped - open_router_missing_provider")
+#@pytest.mark.skip(reason="skipped - open_router_missing_provider")
 def test_call_horizon_alpha():    
     raw_products = product_woo()      
     products = ProductFactory.dedupe(raw_products)    
@@ -572,7 +572,7 @@ def test_call_horizon_alpha():
     match = [products for products in products if products.sku == user_prompt][0]
     print(match)    
     # print(f"num_recs: {num_recs}")
-    num_recs = 11
+    num_recs = 19
     #user_prompt = "WP02"
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
@@ -590,7 +590,8 @@ def test_call_horizon_alpha():
     tc = PromptFactory.get_token_count(prompt)
     print(f"token count: {tc}")        
     
-    model = "openrouter/horizon-alpha"
+    #model = "openrouter/horizon-alpha"
+    model = "openrouter/horizon-beta"
     st = time.time()
     llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
                                  model=model,
