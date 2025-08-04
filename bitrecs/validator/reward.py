@@ -278,19 +278,6 @@ def reward(
             return 0.0
         
         score = BASE_REWARD
-       
-        # if USE_REASONING_ADJUSTMENT:
-        #     if not reasoning_report:
-        #         score = BASE_REWARD / 3
-        #         bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
-        #         return score
-        #     if reasoning_report.score > 0:
-        #         scaled_score = reasoning_report.score / max_r_score if max_r_score > 0 else 0.0
-        #         score = BASE_REWARD + (scaled_score * REASONING_BONUS)
-        #         bt.logging.trace(f"\033[32m{response.miner_hotkey[:8]} Reasoning:{reasoning_report.score},scaled:{scaled_score},score:{score}\033[0m")
-        #     else:
-        #         score = BASE_REWARD / 2
-        #         bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} Poor reasoning,score:{score}\033[0m")
 
         if USE_REASONING_ADJUSTMENT:
             if not reasoning_report:
@@ -298,12 +285,12 @@ def reward(
                 score = 0.0
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
                 return score
-            elif reasoning_report.score <= 0:
+            elif reasoning_report.r_score <= 0:
                 score = BASE_REWARD / 2
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no/low reasoning,score:{score}\033[0m")
                 return score    
             else:
-                scaled_score = reasoning_report.score / max_r_score if max_r_score > 0 else 0.0
+                scaled_score = reasoning_report.r_score / max_r_score if max_r_score > 0 else 0.0
                 score = BASE_REWARD + (scaled_score * REASONING_BONUS)
                 if score == 0:
                     bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} SCORE 0 Reasoning:{reasoning_report.score},scaled:{scaled_score}\033[0m")
