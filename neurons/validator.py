@@ -25,8 +25,6 @@ import traceback
 import requests
 import signal
 from random import SystemRandom
-
-from bitrecs.utils.reasoning import ReasonReport
 safe_random = SystemRandom()
 from dotenv import load_dotenv
 load_dotenv()
@@ -45,6 +43,7 @@ from bitrecs.metrics.score_metrics import (
     check_score_health,
     run_complete_score_analysis
 )
+from bitrecs.utils.reasoning import ReasonReport
 
 validator_instance = None  # Global reference for signal handler
 

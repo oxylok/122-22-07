@@ -188,7 +188,7 @@ def reward(
     reasoning_report: ReasonReport = None,
     actions: List[UserAction] = None,
     r_limit: float = 1.0,
-    max_r_score: float = 1.0
+    max_f_score: float = 1.0
 ) -> float:
     """
     Score the Miner's response to the BitrecsRequest 
@@ -280,22 +280,21 @@ def reward(
         score = BASE_REWARD
 
         if USE_REASONING_ADJUSTMENT:
-            if not reasoning_report:
-                #score = BASE_REWARD / 3
-                score = 0.0
+            if not reasoning_report:                
+                score = BASE_REWARD / 4
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
                 return score
-            elif reasoning_report.r_score <= 0:
+            elif reasoning_report.f_score <= 0:
                 score = BASE_REWARD / 2
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no/low reasoning,score:{score}\033[0m")
-                return score    
+                return score
             else:
-                scaled_score = reasoning_report.r_score / max_r_score if max_r_score > 0 else 0.0
+                scaled_score = reasoning_report.f_score / max_f_score if max_f_score > 0 else 0.0
                 score = BASE_REWARD + (scaled_score * REASONING_BONUS)
                 if score == 0:
-                    bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} SCORE 0 Reasoning:{reasoning_report.score},scaled:{scaled_score}\033[0m")
+                    bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} SCORE 0 Reasoning:{reasoning_report.f_score},scaled:{scaled_score}\033[0m")
 
-            bt.logging.trace(f"\033[32m{response.miner_hotkey[:8]} Reasoning:{reasoning_report.score},scaled:{scaled_score},score:{score}\033[0m")
+            bt.logging.trace(f"\033[32m{response.miner_hotkey[:8]} Reasoning:{reasoning_report.f_score},scaled:{scaled_score},score:{score}\033[0m")
         
         # if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
         #     # Adjust the rewards based on the actions
@@ -417,8 +416,8 @@ def get_rewards(
             continue
         
         r_report = get_reasoning_report(response, reasoning_reports)
-        max_r_score = max((r.score for r in reasoning_reports), default=1.0)
-        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, r_report, actions, r_limit, max_r_score)
+        max_f_score = max((r.f_score for r in reasoning_reports), default=1.0)
+        base_reward = reward(validator_hotkey, ground_truth, catalog_validator, response, r_report, actions, r_limit, max_f_score)
         if base_reward <= 0.0:
             rewards.append(0.0)
             continue

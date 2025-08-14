@@ -8,7 +8,8 @@ from dateutil.parser import parse as parse_dt
 class ReasonReport:
     created_at: str = field(default_factory=str)
     miner_hotkey: str = field(default_factory=str)
-    r_score: float = field(default=0.0)
+    f_score: float = field(default=0.0)
+    evaluated: int = field(default=0)
     rank: int = field(default=0)
 
     
@@ -30,7 +31,8 @@ class ReasonReport:
                 report = ReasonReport(
                     created_at=item.get("created_at", ""),
                     miner_hotkey=item.get("miner_hotkey", ""),
-                    r_score=item.get("r_score", 0.0),
+                    evaluated=item.get("evaluated", 0),
+                    f_score=item.get("f_score", 0.0),
                     rank=item.get("rank", 0)
                 )
                 reports.append(report)

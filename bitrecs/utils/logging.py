@@ -150,7 +150,7 @@ def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> Non
     conn.commit()
 
 
-def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], rewards: np.ndarray,  elected: BitrecsRequest) -> None:
+def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest], rewards: np.ndarray, elected: BitrecsRequest) -> None:
     try:
         frames = []
         for response in responses:

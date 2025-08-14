@@ -11,7 +11,7 @@ from bitrecs.commerce.product import ProductFactory
 
 class PromptFactory:
 
-    SEASON = "spring/summer"
+    SEASON = "fall/winter"
 
     ENGINE_MODE = "complimentary"  #similar, sequential
     
