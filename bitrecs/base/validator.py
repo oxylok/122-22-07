@@ -552,6 +552,8 @@ class BaseValidatorNeuron(BaseNeuron):
                                     self.update_successful_scores(rewards, chosen_uids)
                                     bt.logging.trace(f"\033[32mOrphans rewarded\033[0m")
                             self.decay_suspects()
+                            loop = asyncio.get_event_loop()
+                            loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
                             synapse_with_event.event.set()
                             continue
                         
