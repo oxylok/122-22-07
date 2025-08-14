@@ -512,6 +512,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             if not any_success: #don't penalize the entire set, just exit
                                 bt.logging.error("\033[1;31mRETRY FAILED - NO SUCCESSFUL RESPONSES\033[0m")
                                 self.bad_set_count += 1
+                                loop = asyncio.get_event_loop()
+                                loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, None, None)
                                 synapse_with_event.event.set()
                                 continue
 
