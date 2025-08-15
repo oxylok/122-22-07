@@ -344,6 +344,7 @@ class ApiServer:
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
             
+            bt.logging.trace(f"REQUEST QUERY: {request.query}")
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
             sn_t = time.perf_counter()
             response = await self.forward_fn(request)
