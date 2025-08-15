@@ -280,7 +280,7 @@ def reward(
         score = BASE_REWARD
 
         if USE_REASONING_ADJUSTMENT:
-            if not reasoning_report:                
+            if not reasoning_report:
                 score = BASE_REWARD / 4
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
                 return score
@@ -379,7 +379,7 @@ def get_rewards(
     bt.logging.trace("----------------|----|----------")
     for ip, count in sorted(ip_counts.items(), key=lambda x: -x[1]):
         this_hk = [r.axon.hotkey for r in responses if r.axon.ip == ip][0]
-        bt.logging.trace(f"{ip:<15} | {count} | {this_hk[:8]}")
+        bt.logging.trace(f"{ip:<15} | {count}  | {this_hk[:8]}")
 
     entity_ips = set()
     if max_ip_percent >= entity_threshold:
