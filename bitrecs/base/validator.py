@@ -532,7 +532,7 @@ class BaseValidatorNeuron(BaseNeuron):
                                               actions=self.user_actions,
                                               r_limit=self.r_limit,
                                               batch_size=CONST.QUERY_BATCH_SIZE,
-                                              entity_threshold= CONST.BATCH_ENTITY_THRESHOLD)
+                                              entity_threshold=CONST.BATCH_ENTITY_THRESHOLD)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")                            

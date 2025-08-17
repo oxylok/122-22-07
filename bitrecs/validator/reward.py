@@ -32,22 +32,14 @@ from bitrecs.commerce.product import Product, ProductFactory
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.reasoning import ReasonReport
 
-BASE_BOOST = 1/256
+
 BASE_REWARD = 0.80
-MAX_BOOST = 0.20
-
-CONSENSUS_BONUS_MULTIPLIER = 1.025
-SUSPECT_MINER_DECAY = 0.980
-USE_DIFFICULTY_ADJUSTMENT = False
+CONSENSUS_BONUS_MULTIPLIER = 1.05
+REASONING_BONUS_MULTIPLIER = 1.025
 USE_REASONING_ADJUSTMENT = True
-REASONING_BONUS = 0.05
+USE_DIFFICULTY_ADJUSTMENT = False
+SUSPECT_MINER_DECAY = 0.980
 
-
-ACTION_WEIGHTS = {
-    ActionType.VIEW_PRODUCT.value: 0.0,
-    ActionType.ADD_TO_CART.value: 0.0,
-    ActionType.PURCHASE.value: 0.0,
-}
 
 class CatalogValidator:
     def __init__(self, store_catalog: List[Product]):
@@ -104,15 +96,6 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
         if not response.miner_signature:
             bt.logging.error("Response missing miner_signature")
             return False
-        response_time = datetime.fromisoformat(response.created_at)
-        if response_time.tzinfo is None:
-            response_time = response_time.replace(tzinfo=timezone.utc)
-        utc_now = datetime.now(timezone.utc)
-        age = (utc_now - response_time).total_seconds()
-        if age > 300:
-            bt.logging.error(f"Response is too old: {age} seconds")
-            return False
-        
         payload = {
             "name": response.name,
             "axon_hotkey": response.axon.hotkey,
@@ -136,48 +119,16 @@ def verify_response_signature(response: BitrecsRequest) -> bool:
         return False
 
 
-def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
-    """
-    Reward miners who generate positive actions on ecommerce sites
-    DISABLED DURING BOOTSTRAPPING PHASE
-
-    """
-    try:
-        if not actions or len(actions) == 0:
-            return 0.0
-
-        miner_actions = [a for a in actions if a["hot_key"].lower() == hotkey.lower()]
-        if len(miner_actions) == 0:
-            bt.logging.trace(f"Miner {hotkey} has no actions")
-            return 0.0
-
-        views = [v for v in miner_actions if v["action"] == ActionType.VIEW_PRODUCT.name]
-        add_to_carts = [a for a in miner_actions if a["action"] == ActionType.ADD_TO_CART.name]
-        purchases = [p for p in miner_actions if p["action"] == ActionType.PURCHASE.name]        
-
-        if len(views) == 0 and len(add_to_carts) == 0 and len(purchases) == 0:
-            bt.logging.trace(f"Miner {hotkey} has no parsed actions - skipping boost")
-            return 0.0
-        
-        vf = ACTION_WEIGHTS[ActionType.VIEW_PRODUCT.value] * len(views)
-        af = ACTION_WEIGHTS[ActionType.ADD_TO_CART.value] * len(add_to_carts)
-        pf = ACTION_WEIGHTS[ActionType.PURCHASE.value] * len(purchases)
-        total_boost = vf + af + pf
-        bt.logging.trace(f"Miner {hotkey} total_boost: {total_boost} from views: ({len(views)}) add_to_carts: ({len(add_to_carts)}) purchases: ({len(purchases)})")
-
-        # miner has no actions this round
-        if total_boost == 0:
-            return 0.0
-        
-        #TODO review this       
-        if total_boost > BASE_BOOST:
-            total_boost = MAX_BOOST / (1 + math.exp(-total_boost + BASE_BOOST))
-        
-        return min(max(total_boost, 0.0), MAX_BOOST)
-    except Exception as e:
-        bt.logging.error(f"Error in calculate_miner_boost: {e}")
-        traceback.print_exc()
-        return 0.0
+def verify_time(response: BitrecsRequest) -> bool:
+    response_time = datetime.fromisoformat(response.created_at)
+    if response_time.tzinfo is None:
+        response_time = response_time.replace(tzinfo=timezone.utc)
+    utc_now = datetime.now(timezone.utc)
+    age = (utc_now - response_time).total_seconds()
+    if age > 300:
+        bt.logging.error(f"Response is too old: {age} seconds")
+        return False
+    return True
 
 
 def reward(
@@ -220,6 +171,9 @@ def reward(
             return 0.0
         if not response.is_success:
             bt.logging.error(f"{response.axon.hotkey[:8]} is_success is False, status: {response.dendrite.status_code}")
+            return 0.0
+        if not verify_time(response):
+            bt.logging.error(f"{response.axon.hotkey[:8]} response time verification failed")
             return 0.0
         if not verify_response_signature(response):
             bt.logging.error(f"{response.axon.hotkey[:8]} signature verification")
@@ -281,36 +235,32 @@ def reward(
 
         if USE_REASONING_ADJUSTMENT:
             if not reasoning_report:
-                score = BASE_REWARD / 4
+                score = BASE_REWARD / 4 #0.2
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
                 return score
             elif reasoning_report.f_score <= 0:
-                score = BASE_REWARD / 2
-                bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no/low reasoning,score:{score}\033[0m")
-                return score
-            else:
-                scaled_score = reasoning_report.f_score / max_f_score if max_f_score > 0 else 0.0
-                score = BASE_REWARD + (scaled_score * REASONING_BONUS)
-                if score == 0:
-                    bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} SCORE 0 Reasoning:{reasoning_report.f_score},scaled:{scaled_score}\033[0m")
+                score = BASE_REWARD / 2 #0.4
+                bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no/low reasoning,score:{score}\033[0m")                
+            else:                
+                score = BASE_REWARD + min(reasoning_report.f_score, max_f_score)
+                score *= REASONING_BONUS_MULTIPLIER
 
-            bt.logging.trace(f"\033[32m{response.miner_hotkey[:8]} Reasoning:{reasoning_report.f_score},scaled:{scaled_score},score:{score}\033[0m")
-        
-        # if CONST.CONVERSION_SCORING_ENABLED and 1==2: #Disabled during boostrapping phase of mainnet
-        #     # Adjust the rewards based on the actions
-        #     boost = calculate_miner_boost(response.miner_hotkey, actions)
-        #     if boost > 0:
-        #         bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
-        #         bt.logging.trace(f"\033[32m current: {score} \033[0m")
-        #         score = score + boost
-        #         bt.logging.trace(f"\033[32m after: {score} \033[0m")
-        #     else:
-        #         bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
-        
+            # max_rank = 0.9
+            # if reasoning_report.rank > 0 and reasoning_report.rank <= 256:
+            #     rank_bonus = max_rank / reasoning_report.rank
+            #     score *= rank_bonus
+            #     bt.logging.trace(f"{response.miner_hotkey[:8]} rank bonus: {rank_bonus:.4f}, score: {score:.4f}")
+            # else:
+            #     bt.logging.error(f"{response.miner_hotkey[:8]} invalid rank: {reasoning_report.rank}, score: {score:.4f}")
+            #     return 0.0
+          
+        score = min(score, 0.9)
         return score
     except Exception as e:
         bt.logging.error(f"Error in rewards: {e}, miner data: {response}")
         return 0.0
+
+
 
 
 def get_rewards(
@@ -486,7 +436,7 @@ def get_difficulty_statement(difficulty: float) -> str:
 def get_reasoning_report(
     response: BitrecsRequest,
     reasoning_reports: List[ReasonReport] = None
-) -> ReasonReport:   
+) -> ReasonReport | None:
     if not reasoning_reports or len(reasoning_reports) == 0:
         return None
     reasoning_report = next(
