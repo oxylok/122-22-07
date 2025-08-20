@@ -675,9 +675,11 @@ class BaseValidatorNeuron(BaseNeuron):
             if self.api_server:
                 self.api_server.stop()
 
+
     async def run(self):
         """Initiates and manages the main loop for the validator on the Bitrecs subnet."""
         await self.main_loop()
+
 
     def run_in_background_thread(self):
         """
@@ -691,6 +693,7 @@ class BaseValidatorNeuron(BaseNeuron):
             self.thread.start()
             self.is_running = True
             bt.logging.debug("Started")
+
 
     def stop_run_thread(self):
         """
@@ -706,9 +709,11 @@ class BaseValidatorNeuron(BaseNeuron):
             self.is_running = False
             bt.logging.debug("Stopped")
 
+
     def __enter__(self):
         self.run_in_background_thread()
         return self
+    
 
     def __exit__(self, exc_type, exc_value, traceback):
         """
@@ -724,6 +729,7 @@ class BaseValidatorNeuron(BaseNeuron):
             self.thread.join(5)
             self.is_running = False
             bt.logging.debug("Stopped")
+
 
     def set_weights(self):
         """Sets the validator weights to the metagraph hotkeys based on the scores."""
@@ -744,9 +750,17 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"\033[3;3mUpdating premature weights! \033[0m")
             bt.logging.warning(f"\033[3;3mCoverage {coverage:.2f}% is below minimum threshold of {min_coverage:.2f}%.\033[0m")
             #return
-
-        # Use normalized scores for weights
-        raw_weights = self.get_normalized_scores()
+        
+        # Calculate L1 norm of scores
+        norm = np.linalg.norm(self.scores, ord=1, axis=0, keepdims=True)
+        
+        # Check if the norm is zero or contains NaN values
+        if np.any(norm == 0) or np.isnan(norm).any():
+            norm = np.ones_like(norm)  # Avoid division by zero or NaN
+        
+        # Compute raw_weights using L1 normalization
+        raw_weights = self.scores / norm
+        bt.logging.debug("raw_weights", raw_weights)
 
         # Process the raw weights to final_weights via subtensor limitations.
         try:
@@ -907,23 +921,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         for i, uid in enumerate(uids_array):
             if rewards[i] > 0:
-                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]
-
-
-    def get_normalized_scores(self):        
-        """fixed ceiling normalization of scores"""
-        scores = self.scores.copy()        
-        nonlinear_power = 1.0
-        max_score = BASE_REWARD * CONSENSUS_BONUS_MULTIPLIER
-        n = len(scores)
-        if n == 0 or max_score <= 0:            
-            return np.zeros_like(scores)
-        transformed = np.power(scores, nonlinear_power)
-        max_sum = n * (max_score ** nonlinear_power)
-        if max_sum == 0:
-            return np.zeros_like(scores)
-        normalized = transformed / max_sum
-        return normalized
+                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
     
 
     def save_state(self):
