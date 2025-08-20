@@ -7,26 +7,37 @@ from bitrecs.utils import constants as CONST
 def display_normalized_analysis(validator_instance):
     """Display normalized scores that are actually used for weights"""
     try:
-        normalized_scores = validator_instance.get_normalized_scores()
+        # Calculate the same L1 normalization that set_weights() uses
+        raw_scores = validator_instance.scores.copy()
+        
+        # Apply the same L1 normalization logic from set_weights()
+        norm = np.linalg.norm(raw_scores, ord=1, axis=0, keepdims=True)
+        
+        # Check if the norm is zero or contains NaN values
+        if np.any(norm == 0) or np.isnan(norm).any():
+            norm = np.ones_like(norm)  # Avoid division by zero or NaN
+        
+        # Compute normalized scores (same as raw_weights in set_weights)
+        normalized_scores = raw_scores / norm
         
         bt.logging.info(f"\033[1;36m=== NORMALIZED WEIGHTS ===\033[0m")
         
-        raw_active = validator_instance.scores
-        if len(raw_active) > 0:
-            min_score = np.min(raw_active)
-            max_score = np.max(raw_active)
+        if len(raw_scores) > 0:
+            min_score = np.min(raw_scores)
+            max_score = np.max(raw_scores)
             bt.logging.info(f"Raw score range: {min_score:.6f} - {max_score:.6f}")
             if min_score > 0:
                 raw_ratio = max_score / min_score
                 bt.logging.info(f"Raw score ratio: {raw_ratio:.2f}")
             else:
                 bt.logging.info("Raw score ratio: inf (min score is zero)")
-            bt.logging.info(f"Active scores: {len(raw_active)} (filtered from {len(validator_instance.scores)})")
+            bt.logging.info(f"Active scores: {np.count_nonzero(raw_scores)} (filtered from {len(raw_scores)})")
         else:
             bt.logging.warning("No significant raw scores found")
             return
         
-        active_normalized = {uid: norm_score for uid, norm_score in enumerate(normalized_scores)}        
+        # Create dictionary for active normalized scores
+        active_normalized = {uid: norm_score for uid, norm_score in enumerate(normalized_scores) if norm_score > 1e-10}        
         
         if not active_normalized:
             bt.logging.warning("No active normalized weights")
@@ -39,7 +50,7 @@ def display_normalized_analysis(validator_instance):
             'cv': np.std(norm_array) / np.mean(norm_array) if np.mean(norm_array) > 0 else 0,
             'min': np.min(norm_array),
             'max': np.max(norm_array),
-            'sum': np.sum(norm_array)  # Should be ~1.0
+            'sum': np.sum(normalized_scores)  # Should be ~1.0 due to L1 norm
         }
         
         bt.logging.info(f"Normalized sum: {norm_stats['sum']:.6f} (should be ~1.0)")
@@ -62,16 +73,6 @@ def display_normalized_analysis(validator_instance):
         top_3_weight = sum(weight for _, weight in sorted_normalized[:3])
         if top_3_weight > 0.7:
             bt.logging.warning(f"⚠️High weight concentration in top 3: {top_3_weight:.1%}")
-        
-        # Check for extreme ranges
-        # min_threshold = 1e-8
-        # nonzero_norm = [x for x in norm_array if x > min_threshold]
-        # if len(nonzero_norm) > 1:
-        #     norm_ratio = np.max(nonzero_norm) / np.min(nonzero_norm)
-        # else:
-        #     norm_ratio = float('nan')
-        # if norm_ratio > 1000:
-        #     bt.logging.warning(f"⚠️Extreme normalized range - ratio: {norm_ratio:.2f}")
         
     except Exception as e:
         bt.logging.error(f"Error in normalized analysis: {e}")
