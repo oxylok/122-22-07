@@ -21,13 +21,13 @@ OLLAMA_MODEL = "mistral-nemo"
 map = [
     {"provider": LLM.OLLAMA_LOCAL, "model": "mistral-nemo"},
     {"provider": LLM.VLLM, "model": "NousResearch/Meta-Llama-3-8B-Instruct"},
-    {"provider": LLM.CHAT_GPT, "model": "gpt-4o-mini"},
+    {"provider": LLM.CHAT_GPT, "model": "gpt-5-nano-2025-08-07"},
 
     #{"provider": LLM.OPEN_ROUTER, "model": "nvidia/llama-3.1-nemotron-70b-instruct"},
     #{"provider": LLM.OPEN_ROUTER, "model": "nousresearch/deephermes-3-llama-3-8b-preview:free"},
 
-    {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-lite-v1"},    
-    {"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.5-flash-lite-preview-06-17"},
+    {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-lite-v1"},
+    {"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.5-flash-lite"},
     {"provider": LLM.OPEN_ROUTER, "model": "meta-llama/llama-4-scout"},
     {"provider": LLM.OPEN_ROUTER, "model": "openai/gpt-4.1-nano"},
     
@@ -192,7 +192,7 @@ def test_call_local_llm_with_1k_for_baseline():
     print(parsed_recs)
     
     assert len(parsed_recs) == num_recs
-    #check uniques
+    
     skus = [item['sku'] for item in parsed_recs]
     counter = Counter(skus)
     for sku, count in counter.items():
@@ -281,7 +281,7 @@ def test_call_all_cloud_providers_1k_woo_products():
             diff = et-st
             print(f"provider: \033[32m {provider} run \033[0m {model} : {diff:.2f} seconds")
             assert len(parsed_recs) == num_recs
-            #check uniques
+            
             skus = [item['sku'] for item in parsed_recs]
             counter = Counter(skus)
             for sku, count in counter.items():
@@ -359,7 +359,7 @@ def test_call_multiple_open_router_1k_amazon_random():
                 assert count == 1
 
             print("asserting user_prompt not in sku")
-            assert user_prompt not in sku
+            assert user_prompt not in skus
             
             success_count += 1
             print(f"provider: \033[32m {this_provider} PASSED amazon \033[0m with: {model}")
@@ -499,7 +499,7 @@ def test_call_chutes():
     print(f"parsed {len(parsed_recs)} records")
     #print(parsed_recs)
     assert len(parsed_recs) == num_recs
-    #check uniques
+    
     skus = [item['sku'] for item in parsed_recs]
     counter = Counter(skus)
     for sku, count in counter.items():
@@ -550,7 +550,7 @@ def test_call_nousresearch_deephermes_3_mistral_24b_preview():
     print(f"parsed {len(parsed_recs)} records")
     #print(parsed_recs)
     assert len(parsed_recs) == num_recs
-    #check uniques
+    
     skus = [item['sku'] for item in parsed_recs]
     counter = Counter(skus)
     for sku, count in counter.items():
@@ -560,7 +560,7 @@ def test_call_nousresearch_deephermes_3_mistral_24b_preview():
     
 
 
-#@pytest.mark.skip(reason="skipped - open_router_missing_provider")
+@pytest.mark.skip(reason="skipped - open_router_missing_provider")
 def test_call_horizon_alpha():    
     raw_products = product_woo()      
     products = ProductFactory.dedupe(raw_products)    
@@ -570,10 +570,7 @@ def test_call_horizon_alpha():
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
-    print(match)    
-    # print(f"num_recs: {num_recs}")
-    num_recs = 19
-    #user_prompt = "WP02"
+    print(match)
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
@@ -605,11 +602,88 @@ def test_call_horizon_alpha():
     print(f"parsed {len(parsed_recs)} records")
     print(parsed_recs)
     assert len(parsed_recs) == num_recs
-    #check uniques
+    
     skus = [item['sku'] for item in parsed_recs]
     counter = Counter(skus)
     for sku, count in counter.items():
         print(f"{sku}: {count}")
         assert count == 1
     assert user_prompt not in skus
+
+
+#@pytest.mark.skip(reason="skipped - open_router_missing_provider")
+def test_call_openai_route_gpt4_and_gpt5_ok():
+    raw_products = product_woo()      
+    products = ProductFactory.dedupe(raw_products)    
+    rp = safe_random.choice(products)
+    user_prompt = rp.sku    
+    num_recs = safe_random.choice([3, 4, 5])
+    debug_prompts = False
+
+    match = [products for products in products if products.sku == user_prompt][0]
+    print(match)
+    print(f"\033[32mSelected product: {match.sku} - {match.name} \033[0m")
+
+    context = json.dumps([asdict(products) for products in products])
+    factory = PromptFactory(sku=user_prompt, 
+                            context=context, 
+                            num_recs=num_recs,
+                            debug=debug_prompts)
+    
+    prompt = factory.generate_prompt()    
+    print(f"PROMPT SIZE: {len(prompt)}") 
+    wc = PromptFactory.get_word_count(prompt)
+    print(f"word count: {wc}")
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"token count: {tc}")        
+    
+    # Test Legacy
+    model = "gpt-4.1-nano"
+    print(f"\033[32mTesting OpenAI with model: {model} \033[0m")
+    st = time.time()
+    llm_response = LLMFactory.query_llm(server=LLM.CHAT_GPT,
+                                 model=model,
+                                 system_prompt="You are a helpful assistant", 
+                                 temp=0.0, 
+                                 user_prompt=prompt)
+    et = time.time()
+    diff = et - st  
+    print(f"LLM response time: {diff:.2f} seconds")
+    parsed_recs = PromptFactory.tryparse_llm(llm_response)
+    print(f"parsed {len(parsed_recs)} records")
+    print(parsed_recs)
+    assert len(parsed_recs) == num_recs    
+    skus = [item['sku'] for item in parsed_recs]
+    counter = Counter(skus)
+    for sku, count in counter.items():
+        print(f"{sku}: {count}")
+        assert count == 1
+    assert user_prompt not in skus
+
+    # Test GPT5    
+    model = "gpt-5-nano-2025-08-07"
+    #model = "gpt-5-mini-2025-08-07"
+    print(f"\033[32mTesting OpenAI with model: {model} \033[0m")
+    st = time.time()
+    llm_response = LLMFactory.query_llm(server=LLM.CHAT_GPT,
+                                 model=model,
+                                 system_prompt="You are a helpful assistant", 
+                                 temp=0.0, 
+                                 user_prompt=prompt)
+    et = time.time()
+    diff = et - st  
+    print(f"LLM response time: {diff:.2f} seconds")
+    parsed_recs = PromptFactory.tryparse_llm(llm_response)
+    print(f"parsed {len(parsed_recs)} records")
+    print(parsed_recs)
+    assert len(parsed_recs) == num_recs    
+    skus = [item['sku'] for item in parsed_recs]
+    counter = Counter(skus)
+    for sku, count in counter.items():
+        print(f"{sku}: {count}")
+        assert count == 1
+    assert user_prompt not in skus
+
+
+
     
