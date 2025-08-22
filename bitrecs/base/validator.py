@@ -622,7 +622,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        synapse_with_event.output_synapse = elected                        
+                        synapse_with_event.output_synapse = elected
                         synapse_with_event.event.set()
                         self.total_request_in_interval +=1
                     
@@ -640,7 +640,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     if self.should_exit:
                         return
                   
-                    if self.step >= 1:
+                    if self.step >= 1 and self.step % 3 == 0:
                         self.sync()
                     
                     self.step += 1
