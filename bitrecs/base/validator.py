@@ -560,18 +560,18 @@ class BaseValidatorNeuron(BaseNeuron):
                                 model_diversity = len(model_set)
                                 MIN_UNIQUE_MODELS = 2
                                 FRACTION_UNIQUE_MODELS = 0.50
-                                if (
-                                    entity_size >= MIN_UNIQUE_ENTITIES
+
+                                if (entity_size >= MIN_UNIQUE_ENTITIES
                                     and entity_size >= FRACTION_UNIQUE_ENTITIES * len(top_k)
                                     and model_diversity >= MIN_UNIQUE_MODELS
-                                    and model_diversity >= FRACTION_UNIQUE_MODELS * len(top_k)
-                                ):
-                                    bt.logging.info(f"\033[1;32mConsensus miner:{winner.miner_uid}:{winner.models_used} - batch:{winner.site_key} \033[0m")
+                                    and model_diversity >= FRACTION_UNIQUE_MODELS * len(top_k)):
+                                    
                                     rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                     consensus_bonus_applied = True
+                                    bt.logging.info(f"\033[1;32mConsensus Miner:{winner.miner_uid}:{winner.models_used}\033[0m")
                                 else:
                                     bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size}:{model_diversity} \033[0m")
-                                bt.logging.trace(winner)
+                                
                         else:
                             bt.logging.error(f"\033[1;33mNo valid candidates in {len(responses)} responses, request aborted.\033[0m")
                             self.update_scores(rewards, chosen_uids)
@@ -595,12 +595,13 @@ class BaseValidatorNeuron(BaseNeuron):
                         elected.user = ""
                         elected.models_used = [CONST.RE_MODEL_NAME.sub("", m) for m in elected.models_used]
                         
-                        bt.logging.info(f"\033[1;32mFINAL MINER: {elected.miner_uid}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL UID: {elected.miner_uid}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL HOTKEY: {elected.axon.hotkey[:8]}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL MODEL: {elected.models_used}\033[0m")
-                        bt.logging.info(f"\033[1;32mFINAL RESULT: {elected}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL BATCH: {elected.site_key}\033[0m")
+                        bt.logging.info(f"\033[1;32mFINAL RESULT: {elected}\033[0m")
                         if consensus_bonus_applied:
-                            bt.logging.info(f"\033[1;32mBONUS: {CONSENSUS_BONUS_MULTIPLIER}\033[0m")
+                            bt.logging.info(f"\033[1;32mCONSENSUS BONUS APPLIED: x {CONSENSUS_BONUS_MULTIPLIER}\033[0m")
                         bt.logging.info(f"\033[1;32mFINAL SCORE: {rewards[selected_rec]}\033[0m")
                         
                         if len(elected.results) == 0:
@@ -896,20 +897,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 decay_count += 1                
         if decay_count > 0:
             bt.logging.trace(f"\033[33mDecayed {decay_count} suspect miners\033[0m")
-                
-
-    # def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
-    #     """
-    #     On batch failure, still reward those that performed
-    #     """
-    #     default_alpha = self.config.neuron.moving_average_alpha
-    #     rewards = np.asarray(rewards, dtype=np.float32)
-    #     uids_array = np.array(uids, dtype=np.int64)
-
-    #     for i, uid in enumerate(uids_array):
-    #         if rewards[i] > 0:
-    #             self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
-    
+   
 
     def save_state(self):
         if self.first_sync:

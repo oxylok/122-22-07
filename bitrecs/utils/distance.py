@@ -1,10 +1,7 @@
-import json
 import json_repair
-import bittensor as bt
 from typing import List, Optional, Set
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.color import ColorScheme, ColorPalette
-
 
 
 def calculate_jaccard_distance(set1: Set, set2: Set) -> float:  
@@ -109,6 +106,31 @@ def select_most_similar_bitrecs(rec_sets: List[BitrecsRequest], top_n: int = 2) 
         return []
     sim = select_most_similar_sets(sku_sets, top_n)
     return [rec_sets[i] for i in sim]
+
+
+# def select_most_similar_sets_with_scores(rec_sets: List[Set], top_n: int = 2) -> List[tuple]:   
+#     n = len(rec_sets)
+#     all_pairs = []
+#     # Calculate similarities for all pairs
+#     for i in range(n):
+#         for j in range(i + 1, n):
+#             distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
+#             similarity = 1 - distance
+#             all_pairs.append((similarity, i, j))
+
+#     # Sort by similarity (highest first)
+#     all_pairs.sort(reverse=True)
+#     selected = set()
+#     result = []
+#     # Take indices and similarity from best pairs until we have top_n
+#     for sim, i, j in all_pairs:
+#         for idx in (i, j):
+#             if idx not in selected and len(result) < top_n:
+#                 selected.add(idx)
+#                 result.append((idx, sim))
+#         if len(result) >= top_n:
+#             break
+#     return result[:top_n]
 
 
 def select_most_similar_bitrecs_threshold(rec_sets: List[BitrecsRequest], top_n: int = 2, 
