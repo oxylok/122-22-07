@@ -56,10 +56,10 @@ from bitrecs.utils.distance import (
 from bitrecs.utils.reasoning import ReasonReport
 from bitrecs.utils.uids import get_all_miner_uids
 from bitrecs.validator.reward import (
-    BASE_REWARD, 
     CONSENSUS_BONUS_MULTIPLIER, 
     SUSPECT_MINER_DECAY, 
-    get_rewards)
+    get_rewards
+)
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
     log_miner_responses_to_sql,
@@ -68,7 +68,7 @@ from bitrecs.utils.logging import (
 from bitrecs.utils.wandb import WandbHelper
 from bitrecs.commerce.user_action import UserAction
 
-# Set up logging to filter out specific trace messages
+
 original_trace = bt.logging.trace
 def filtered_trace(message, *args, **kwargs):
     if "Unexpected header key encountered" not in message:
@@ -193,9 +193,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.tempo_batch_index = 0
         self.batches_completed = 0
 
-        self.reasoning_reports: List[ReasonReport] = []
-
-        #self.update_total_uids()
+        self.reasoning_reports: List[ReasonReport] = []        
         
         write_node_info(
             network=self.network,
@@ -293,16 +291,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         except Exception as e:
             bt.logging.error(f"Failed to create Axon initialize with exception: {e}")
-            pass
-
-
-    async def concurrent_forward(self):
-        # coroutines = [
-        #     self.forward()
-        #     for _ in range(self.config.neuron.num_concurrent_forwards)
-        # ]
-        # await asyncio.gather(*coroutines)
-        raise NotImplementedError("concurrent_forward not implemented")
+            pass   
 
 
     async def analyze_similar_requests(self, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
@@ -310,18 +299,11 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
             return
         
-        # async def get_dynamic_top_n(num_requests: int) -> int:
-        #     if num_requests < 4:
-        #         return 2
-        #     #return max(2, min(5, num_requests // 3))
-        #     return max(3, min(8, num_requests // 3)) #Wider consensus set
-        
         async def get_dynamic_top_n(num_requests: int, min_n: int = 2, max_n: int = 8, min_requests: int = 2, max_requests: int = 14) -> int:
             if num_requests <= min_requests:
                 return min_n
             if num_requests >= max_requests:
                 return max_n
-            # Linear scaling
             scale = (max_n - min_n) / (max_requests - min_requests)
             return min_n + int((num_requests - min_requests) * scale)
   
@@ -343,8 +325,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         this_model = f"{this_model} - Miner: {br.miner_uid}"
                         if dendrite_time < self.r_limit or axon_time < self.r_limit:
                             this_model = f"{this_model} - X"
-                        models_used.append(this_model)
-                        
+                        models_used.append(this_model)                        
                 except Exception as e:
                     bt.logging.error(f"Error extracting SKUs from results: {e}")
                     continue                    
@@ -429,6 +410,7 @@ class BaseValidatorNeuron(BaseNeuron):
             return False
         return True
 
+
     def log_grouped_by_hotkey(self, responses):
         grouped = defaultdict(list)
         for r in responses:
@@ -437,9 +419,8 @@ class BaseValidatorNeuron(BaseNeuron):
         for hotkey, group in grouped.items():
             bt.logging.warning(f"\n=== dendrite.hotkey: {hotkey} ({len(group)} responses) ===")
             for response in group:
-                bt.logging.warning(
-                    f"  IP {response.axon.ip} | dhk: {response.dendrite.hotkey} | ahk: {response.axon.hotkey} | uid: {response.miner_uid}"
-                )
+                bt.logging.warning(f"IP {response.axon.ip} | dhk: {response.dendrite.hotkey} | ahk: {response.axon.hotkey} | uid: {response.miner_uid}")
+
 
     async def main_loop(self):
         """Main loop for the validator."""
@@ -592,18 +573,20 @@ class BaseValidatorNeuron(BaseNeuron):
                                     bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size}:{model_diversity} \033[0m")
                                 bt.logging.trace(winner)
                         else:
-                            bt.logging.error("\033[1;33mNo valid candidates in responses\033[0m")                          
+                            bt.logging.error(f"\033[1;33mNo valid candidates in {len(responses)} responses, request aborted.\033[0m")
                             self.update_scores(rewards, chosen_uids)
                             loop = asyncio.get_event_loop()
                             loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
+                            self.bad_set_count += 1
                             synapse_with_event.event.set()
                             continue
                         
                         if selected_rec is None:
-                            bt.logging.error("\033[1;31mNo consensus rec elected in responses\033[0m")
+                            bt.logging.error(f"\033[1;31mNo consensus rec elected in {len(responses)} responses, request aborted.\033[0m")
                             self.update_scores(rewards, chosen_uids)
                             loop = asyncio.get_event_loop()
                             loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
+                            self.bad_set_count += 1
                             synapse_with_event.event.set()
                             continue
                     

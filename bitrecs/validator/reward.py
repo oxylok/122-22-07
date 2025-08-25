@@ -16,17 +16,15 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import math
 import json
 import hashlib
-import traceback
 import numpy as np
 import bittensor as bt
 import jsonschema
 import json_repair
 from typing import List
 from datetime import datetime, timezone
-from bitrecs.commerce.user_action import UserAction, ActionType
+from bitrecs.commerce.user_action import UserAction
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.commerce.product import Product, ProductFactory
 from bitrecs.utils import constants as CONST
@@ -125,8 +123,8 @@ def verify_time(response: BitrecsRequest) -> bool:
         response_time = response_time.replace(tzinfo=timezone.utc)
     utc_now = datetime.now(timezone.utc)
     age = (utc_now - response_time).total_seconds()
-    if age > 300:
-        bt.logging.error(f"Response is too old: {age} seconds")
+    if age <= 0 or age > 300:
+        bt.logging.error(f"Failed verify_time: {age} seconds for {response.axon.hotkey[:8]}")
         return False
     return True
 
@@ -244,22 +242,11 @@ def reward(
             else:                
                 score = BASE_REWARD + min(reasoning_report.f_score, max_f_score)
                 score *= REASONING_BONUS_MULTIPLIER
-
-            # max_rank = 0.9
-            # if reasoning_report.rank > 0 and reasoning_report.rank <= 256:
-            #     rank_bonus = max_rank / reasoning_report.rank
-            #     score *= rank_bonus
-            #     bt.logging.trace(f"{response.miner_hotkey[:8]} rank bonus: {rank_bonus:.4f}, score: {score:.4f}")
-            # else:
-            #     bt.logging.error(f"{response.miner_hotkey[:8]} invalid rank: {reasoning_report.rank}, score: {score:.4f}")
-            #     return 0.0
-          
-        score = min(score, 0.9)
+     
         return score
     except Exception as e:
         bt.logging.error(f"Error in rewards: {e}, miner data: {response}")
         return 0.0
-
 
 
 
