@@ -36,7 +36,7 @@ from bitrecs.utils.reasoning import ReasonReport
 BASE_REWARD = 0.80
 CONSENSUS_BONUS_MULTIPLIER = 1.05
 REASONING_BONUS_MULTIPLIER = 1.025
-USE_REASONING_ADJUSTMENT = True
+USE_REASONING_ADJUSTMENT = False
 USE_DIFFICULTY_ADJUSTMENT = False
 SUSPECT_MINER_DECAY = 0.980
 
@@ -235,11 +235,11 @@ def reward(
 
         if USE_REASONING_ADJUSTMENT:
             if not reasoning_report:
-                score = BASE_REWARD / 4 #0.2
+                score = BASE_REWARD / 4
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no report,score:{score}\033[0m")
                 return score
             elif reasoning_report.f_score <= 0:
-                score = BASE_REWARD / 2 #0.4
+                score = BASE_REWARD / 2
                 bt.logging.warning(f"\033[33m{response.miner_hotkey[:8]} no/low reasoning,score:{score}\033[0m")                
             else:                
                 score = BASE_REWARD + min(reasoning_report.f_score, max_f_score)

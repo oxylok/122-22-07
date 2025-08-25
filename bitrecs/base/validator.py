@@ -519,8 +519,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
-                        if not self.check_response_structure(responses):
-                            #Hard fail entire batch if structure is invalid                            
+                        if not self.check_response_structure(responses):                            
+                            bt.logging.error("\033[1;31m Invalid response structure detected - skipping batch \033[0m")
                             self.bad_set_count += 1
                             synapse_with_event.event.set()
                             continue
@@ -535,29 +535,29 @@ class BaseValidatorNeuron(BaseNeuron):
                                               entity_threshold=CONST.BATCH_ENTITY_THRESHOLD)
                         
                         if not len(chosen_uids) == len(responses) == len(rewards):
-                            bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")                            
+                            bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
                             continue
                         
-                        failure_rate = np.sum(rewards == 0) / len(rewards)
-                        if failure_rate >= CONST.BATCH_FAILURE_THRESHOLD:
-                            self.bad_set_count += 1
-                            bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
-                            bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
-                            orphans = [(uid, reward) for uid, reward in zip(chosen_uids, rewards) if reward > 0]
-                            if orphans:
-                                bt.logging.warning("\033[33mOrphaned miners!\033[0m")
-                                for uid, reward in orphans:
-                                    self.batch_orphan_uids.add(uid)
-                                    bt.logging.warning(f"Orphan UID {uid}: potential reward={reward:.4f}")
-                                if CONST.REWARD_ORPHANS:
-                                    self.update_successful_scores(rewards, chosen_uids)
-                                    bt.logging.trace(f"\033[32mOrphans rewarded\033[0m")
-                            self.decay_suspects()
-                            loop = asyncio.get_event_loop()
-                            loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
-                            synapse_with_event.event.set()
-                            continue
+                        # failure_rate = np.sum(rewards == 0) / len(rewards)
+                        # if failure_rate >= CONST.BATCH_FAILURE_THRESHOLD:
+                        #     self.bad_set_count += 1
+                        #     bt.logging.error(f"ERROR - Failure threshold ({failure_rate:.2%} > {CONST.BATCH_FAILURE_THRESHOLD:.2%})")
+                        #     bt.logging.error(f"Total bad sets: \033[31m{self.bad_set_count}\033[0m")
+                        #     orphans = [(uid, reward) for uid, reward in zip(chosen_uids, rewards) if reward > 0]
+                        #     if orphans:
+                        #         bt.logging.warning("\033[33mOrphaned miners!\033[0m")
+                        #         for uid, reward in orphans:
+                        #             self.batch_orphan_uids.add(uid)
+                        #             bt.logging.warning(f"Orphan UID {uid}: potential reward={reward:.4f}")
+                        #         if CONST.REWARD_ORPHANS:
+                        #             self.update_successful_scores(rewards, chosen_uids)
+                        #             bt.logging.trace(f"\033[32mOrphans rewarded\033[0m")
+                        #     self.decay_suspects()
+                        #     loop = asyncio.get_event_loop()
+                        #     loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
+                        #     synapse_with_event.event.set()
+                        #     continue
                         
                         selected_rec = None
                         good_indices = np.where(rewards > 0)[0]
@@ -586,20 +586,24 @@ class BaseValidatorNeuron(BaseNeuron):
                                     and model_diversity >= FRACTION_UNIQUE_MODELS * len(top_k)
                                 ):
                                     bt.logging.info(f"\033[1;32mConsensus miner:{winner.miner_uid}:{winner.models_used} - batch:{winner.site_key} \033[0m")
-                                    rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER                            
+                                    rewards[selected_rec] *= CONSENSUS_BONUS_MULTIPLIER
                                     consensus_bonus_applied = True
                                 else:
-                                    bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size} \033[0m")
+                                    bt.logging.warning(f"\033[33mNo consensus bonus for round, low diversity: {entity_size}:{model_diversity} \033[0m")
                                 bt.logging.trace(winner)
                         else:
-                            bt.logging.error("\033[1;33mSkipped Scoring - no valid candidates in responses \033[0m")
-                            self.decay_suspects()
+                            bt.logging.error("\033[1;33mNo valid candidates in responses\033[0m")                          
+                            self.update_scores(rewards, chosen_uids)
+                            loop = asyncio.get_event_loop()
+                            loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
                             synapse_with_event.event.set()
                             continue
                         
                         if selected_rec is None:
-                            bt.logging.error("\033[1;31mSkipped Scoring - no consensus rec in responses \033[0m")
-                            self.decay_suspects()
+                            bt.logging.error("\033[1;31mNo consensus rec elected in responses\033[0m")
+                            self.update_scores(rewards, chosen_uids)
+                            loop = asyncio.get_event_loop()
+                            loop.run_in_executor(None, log_miner_responses_to_sql, self.step, responses, rewards, None)
                             synapse_with_event.event.set()
                             continue
                     
@@ -911,17 +915,17 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.trace(f"\033[33mDecayed {decay_count} suspect miners\033[0m")
                 
 
-    def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
-        """
-        On batch failure, still reward those that performed
-        """
-        default_alpha = self.config.neuron.moving_average_alpha
-        rewards = np.asarray(rewards, dtype=np.float32)
-        uids_array = np.array(uids, dtype=np.int64)
+    # def update_successful_scores(self, rewards: np.ndarray, uids: list[int]):
+    #     """
+    #     On batch failure, still reward those that performed
+    #     """
+    #     default_alpha = self.config.neuron.moving_average_alpha
+    #     rewards = np.asarray(rewards, dtype=np.float32)
+    #     uids_array = np.array(uids, dtype=np.int64)
 
-        for i, uid in enumerate(uids_array):
-            if rewards[i] > 0:
-                self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
+    #     for i, uid in enumerate(uids_array):
+    #         if rewards[i] > 0:
+    #             self.scores[uid] = default_alpha * rewards[i] + (1 - default_alpha) * self.scores[uid]    
     
 
     def save_state(self):
